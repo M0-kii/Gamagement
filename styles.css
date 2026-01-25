@@ -1,0 +1,217 @@
+* { box-sizing: border-box; margin:0; padding:0; }
+
+body {
+  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  background: #0e1015;
+  color: #e5e7eb;
+  min-height: 100vh;
+  padding-top: 90px;
+  padding: 90px 1.5rem 2rem;
+  line-height: 1.6;
+  --sb-track-color: #000000;
+  --sb-thumb-color: #444444;
+  --sb-size: 14px;
+}
+
+
+body::-webkit-scrollbar {
+  width: var(--sb-size);
+}
+
+body::-webkit-scrollbar-track {
+  background: var(--sb-track-color);
+  border-radius: 3px;
+}
+
+body::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb-color);
+  border-radius: 3px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  body {
+      scrollbar-color: var(--sb-thumb-color)
+                     var(--sb-track-color);
+  }
+}
+
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 70px;
+  background: #0a0c12;
+  border-bottom: 1px solid #1f2937;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  color: #f3f4f6;
+  letter-spacing: -0.4px;
+}
+
+#langBtn {
+  padding: 9px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: #2d3748;
+  color: #e5e7eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+#langBtn:hover {
+  background: #4a5568;
+}
+
+.container { max-width: 1600px; margin: 0 auto; }
+
+h2 {
+  color: #cbd5e1;
+  font-size: 1.75rem;
+  margin: 2rem 0 1.2rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.6rem;
+}
+
+.card {
+  background: #111827;
+  border-radius: 14px;
+  padding: 1.6rem;
+  border: 1px solid #1f2937;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  transition: all 0.22s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  border-color: #334155;
+}
+
+button {
+  font-size: 1.05rem;
+  font-weight: 500;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s;
+  margin: 0.4rem;
+  min-width: 110px;
+}
+
+.primary   { background: #374151; color: #f3f4f6; }
+.primary:hover   { background: #4b5563; }
+
+.danger    { background: #5f1a1a; color: #fecaca; }
+.danger:hover    { background: #7f1d1d; }
+
+.secondary { background: #2d3748; color: #cbd5e1; }
+.secondary:hover { background: #374151; }
+
+input, select {
+  padding: 0.85rem 1.1rem;
+  font-size: 1.03rem;
+  background: #1f2937;
+  border: 1px solid #2d3748;
+  border-radius: 8px;
+  color: #e5e7eb;
+  width: 100%;
+  margin: 0.7rem 0;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: #111827;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 440px;
+  border: 1px solid #2d3748;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+}
+
+.modal-content h3 {
+  color: #e5e7eb;
+  margin-bottom: 1.5rem;
+  font-size: 1.45rem;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.6rem;
+}
+
+.session-block {
+  margin-top: 1.4rem;
+  padding: 1.4rem;
+  background: #0f172a;
+  border-radius: 10px;
+  border-left: 6px solid #22c55e; 
+}
+
+.session-block.paused {
+  border-left-color: #f59e0b; /* PAUSED */
+}
+
+.session-block.ended {
+  border-left-color: #ef4444; /* ENDED */
+}
+
+.session-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+
+.price {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin: 0.8rem 0;
+}
+
+.time {
+  color: #9ca3af;
+  font-size: 1.2rem;
+}
+
+.card-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.8rem;
+}
+
+@media (max-width: 1000px) {
+  .grid { grid-template-columns: 1fr; }
+  button, input, select { width: 100%; margin: 0.5rem 0; }
+}
