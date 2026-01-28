@@ -8,6 +8,7 @@ let db;
 const dbPath = path.join(app.getPath('userData'), 'gamecenter.db');
 
 function createWindow() {
+    
     const win = new BrowserWindow({
         width: 1200,
         height: 800,

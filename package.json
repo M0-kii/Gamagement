@@ -1,19 +1,21 @@
 {
   "name": "dev.m0-kii.gamagement",
   "productName": "Gamagement",
+  "author": "M0_kii",
+  "description": "Game Center Management App",
   "copyright": "© 2025 M0_kii",
   "version": "1.0.0",
   "main": "main.js",
   "win": {
-    "target": ["nsis", "portable"],
+    "target": [
+      "nsis",
+      "portable"
+    ],
     "icon": "icon.ico"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true
-  },
-  "directories": {
-    "output": "dist"
   },
   "files": [
     "**/*",
@@ -24,7 +26,10 @@
     "dist": "electron-builder --win --x64"
   },
   "dependencies": {
-    "electron": "^21.0.0",
     "sqlite3": "^5.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.4.0",
+    "electron": "^21.0.0"
   }
 }

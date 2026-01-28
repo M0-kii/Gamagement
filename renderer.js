@@ -198,7 +198,13 @@ async function loadShopItemsForSession(id) {
   const session = await window.electronAPI.getSession(id);
   const shopDiv = document.getElementById(`shop_${id}`);
   const shop = JSON.parse(session.shopItems || '[]');
-  shopDiv.innerHTML = shop.length ? `<p>${t('addedItems')}</p>` + shop.map(s => `<div>${s.quantity}× Item #${s.itemId}</div>`).join('') : '';
+  shopDiv.innerHTML = shop.length 
+  ? `<p>${t('addedItems')}</p>` + await Promise.all(shop.map(async s => {
+      const price = await window.electronAPI.getItemPrice(s.itemId);
+      const item = (await window.electronAPI.getShopItems()).find(i => i.id === s.itemId);
+      return `<div>${s.quantity}× ${item ? item.name : 'Unknown'} (${formatPrice(price || 0)})</div>`;
+    })).then(lines => lines.join(''))
+  : '';
 }
 
 async function updateTimeAndPrice(id) {
