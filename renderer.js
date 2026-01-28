@@ -60,7 +60,7 @@ async function loadConsoles() {
                 <button class="danger" onclick="deleteConsole(${c.id})">${t('delete')}</button>
             </div>
             <input id="controllers_${c.id}" type="number" min="1" value="1" style="width:80px; margin:0.8rem 0;">
-            <button class="primary" onclick="startSession(${c.id})">${t('startSession')}</button>
+            <button class="success" onclick="startSession(${c.id})">${t('startSession')}</button>
             <div id="sessions_${c.id}"></div>`;
         list.appendChild(div);
         loadSessionsForConsole(c.id);
@@ -102,14 +102,14 @@ async function loadSessionsForConsole(consoleId) {
                 <p>جلسه #${s.id} • ${s.controllers} کنترلر</p>
                 <div class="time" id="time_${s.id}">${t('time')} ۰۰:۰۰:۰۰</div>
                 <div class="price" id="price_${s.id}">${formatPrice(0)}</div>
-                <button class="secondary" onclick="pauseSession(${s.id})">${t('pause')}</button>
-                <button class="secondary" onclick="resumeSession(${s.id})" style="display:none;">${t('resume')}</button>
+                <button class="warning" onclick="pauseSession(${s.id})">${t('pause')}</button>
+                <button class="success" onclick="resumeSession(${s.id})" style="display:none;">${t('resume')}</button>
                 <button class="danger" onclick="endSession(${s.id})">${t('endSession')}</button>
                 <div id="shop_${s.id}" style="margin-top:1rem;"></div>
                 <div style="margin-top:1rem; display:flex; gap:0.8rem; flex-wrap:wrap;">
                     <select id="itemSelect_${s.id}"></select>
                     <input id="quantity_${s.id}" type="number" min="1" value="1" style="width:80px;">
-                    <button class="primary" onclick="addItemToSession(${s.id})">${t('addShop')}</button>
+                    <button class="success" onclick="addItemToSession(${s.id})">${t('addShop')}</button>
                 </div>
             </div>`;
         container.appendChild(div);

@@ -29,31 +29,53 @@
 
     <!-- Console Modal -->
     <div id="consoleModal" class="modal">
-        <div class="modal-content">
-            <h3 id="consoleModalTitle">Add New Console</h3>
-            <input id="consoleName" placeholder="Console Name">
-            <input id="hourlyPrice" type="number" placeholder="Hourly Price (€)" step="0.01">
-            <input id="controllerPrice" type="number" placeholder="Controller Price (€)" step="0.01">
-            <input type="hidden" id="consoleEditId">
-            <div class="modal-buttons">
-                <button class="secondary" onclick="hideConsoleModal()">Cancel</button>
-                <button class="primary" id="consoleSaveBtn" onclick="saveConsole()">Add Console</button>
-            </div>
+      <div class="modal-content">
+        <h3 id="consoleModalTitle">افزودن کنسول جدید</h3>
+
+        <label for="consoleName">نام کنسول</label>
+        <input id="consoleName" placeholder="مثال: PS5 - VIP">
+
+        <label for="hourlyPrice">قیمت ساعتی (تومان)</label>
+        <input id="hourlyPrice" type="number" placeholder="75000" step="1000">
+
+        <label for="controllerPrice">قیمت کنترلر اضافی در ساعت (تومان)</label>
+        <input id="controllerPrice" type="number" placeholder="15000" step="1000">
+
+        <input type="hidden" id="consoleEditId">
+
+        <div class="modal-buttons">
+          <button class="warning" onclick="hideConsoleModal()">
+            <i class="fa-solid fa-xmark"></i> انصراف
+          </button>
+          <button class="success" id="consoleSaveBtn" onclick="saveConsole()">
+            <i class="fa-solid fa-floppy-disk"></i> ذخیره
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Item Modal -->
     <div id="itemModal" class="modal">
-        <div class="modal-content">
-            <h3 id="itemModalTitle">Add New Shop Item</h3>
-            <input id="itemName" placeholder="Item Name">
-            <input id="itemPrice" type="number" placeholder="Price (€)" step="0.01">
-            <input type="hidden" id="itemEditId">
-            <div class="modal-buttons">
-                <button class="secondary" onclick="hideItemModal()">Cancel</button>
-                <button class="primary" id="itemSaveBtn" onclick="saveItem()">Add Item</button>
-            </div>
+      <div class="modal-content">
+        <h3 id="itemModalTitle">افزودن آیتم جدید</h3>
+
+        <label for="itemName">نام آیتم</label>
+        <input id="itemName" placeholder="مثال: نوشابه سرد">
+
+        <label for="itemPrice">قیمت (تومان)</label>
+        <input id="itemPrice" type="number" placeholder="25000" step="1000">
+
+        <input type="hidden" id="itemEditId">
+
+        <div class="modal-buttons">
+          <button class="warning" onclick="hideItemModal()">
+            <i class="fa-solid fa-xmark"></i> انصراف
+          </button>
+          <button class="success" id="itemSaveBtn" onclick="saveItem()">
+            <i class="fa-solid fa-floppy-disk"></i> ذخیره
+          </button>
         </div>
+      </div>
     </div>
 
     <script src="renderer.js"></script>
