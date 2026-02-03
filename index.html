@@ -1,67 +1,127 @@
-<!DOCTYPE html>
+<!doctype html>
 <html dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>Gamagement</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header>
-    <h1>Gamagement</h1>
-    <button class="primary" onclick="showAddConsoleModal()" id="addConsoleBtn">+ Add Console</button>
-  </header>
-    <div class="container">
-        <section id="consoles">
-            <h2>Consoles</h2>
-            <div id="consoleList" class="grid"></div>
-        </section>
-    </div>
-    <!-- Console Modal -->
+  <head>
+    <meta charset="UTF-8" />
+    <title>Gamagement | مدیریت گیم‌سنتر</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-content">
+        <div class="logo-area">
+          <!-- <span class="logo-icon">🎮</span> -->
+          <h1>AsiaGame</h1>
+        </div>
+        <button
+          class="btn-primary"
+          onclick="showAddConsoleModal()"
+          id="addConsoleBtn"
+        >
+          <span class="plus-icon">+</span> افزودن کنسول
+        </button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="consoles">
+        <div class="section-header">
+          <h2>مدیریت کنسول‌ها</h2>
+          <div class="badge">سیستم فعال</div>
+        </div>
+        <div id="consoleList" class="grid"></div>
+      </section>
+    </main>
+
+    <!-- Modals (Structures kept identical to preserve logic) -->
     <div id="consoleModal" class="modal">
       <div class="modal-content">
-        <h3 id="consoleModalTitle">افزودن کنسول جدید</h3>
-        <label for="consoleName">نام کنسول</label>
-        <input id="consoleName" placeholder="مثال: PS5 - VIP">
-        <label for="hourlyPrice">قیمت ساعتی (تومان)</label>
-        <input id="hourlyPrice" type="number" placeholder="75000" step="1000">
-        <label for="controllerPrice">قیمت کنترلر اضافی در ساعت (تومان)</label>
-        <input id="controllerPrice" type="number" placeholder="15000" step="1000">
-        <input type="hidden" id="consoleEditId">
+        <h3 id="consoleModalTitle">افزودن کنسول</h3>
+        <div class="form-group">
+          <label>نام کنسول</label>
+          <input id="consoleName" placeholder="مثال: PS5 - VIP" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>قیمت ساعتی (تومان)</label>
+            <input id="hourlyPrice" type="number" placeholder="75000" />
+          </div>
+          <div class="form-group">
+            <label>کنترلر اضافه (ساعتی)</label>
+            <input id="controllerPrice" type="number" placeholder="15000" />
+          </div>
+        </div>
+        <input type="hidden" id="consoleEditId" />
         <div class="modal-buttons">
-          <button class="warning" onclick="hideConsoleModal()">
-            <i class="fa-solid fa-xmark"></i> انصراف
+          <button class="btn-secondary" onclick="hideConsoleModal()">
+            انصراف
           </button>
-          <button class="success" id="consoleSaveBtn" onclick="saveConsole()">
-            <i class="fa-solid fa-floppy-disk"></i> ذخیره
+          <button
+            class="btn-success"
+            id="consoleSaveBtn"
+            onclick="saveConsole()"
+          >
+            ذخیره
           </button>
         </div>
       </div>
     </div>
-    <!-- Session Item Modal -->
+
     <div id="sessionItemModal" class="modal">
       <div class="modal-content">
-        <h3>افزودن آیتم</h3>
-        <label for="sessionItemName">نام</label>
-        <input id="sessionItemName" placeholder="مثال: چیپس">
-        <label for="sessionItemPrice">قیمت (تومان)</label>
-        <input id="sessionItemPrice" type="number" placeholder="25000" step="1000">
-        <input type="hidden" id="sessionIdForItem">
+        <h3>افزودن خوراکی / کالا</h3>
+        <div class="form-group">
+          <label>نام آیتم</label>
+          <input id="sessionItemName" placeholder="مثال: چیپس یا نوشابه" />
+        </div>
+        <div class="form-group">
+          <label>قیمت (تومان)</label>
+          <input id="sessionItemPrice" type="number" />
+        </div>
+        <input type="hidden" id="sessionIdForItem" />
         <div class="modal-buttons">
-          <button class="warning" onclick="hideSessionItemModal()">انصراف</button>
-          <button class="success" onclick="saveSessionItem()">ذخیره</button>
+          <button class="btn-secondary" onclick="hideSessionItemModal()">
+            انصراف
+          </button>
+          <button class="btn-success" onclick="saveSessionItem()">
+            ثبت آیتم
+          </button>
         </div>
       </div>
     </div>
-    <!-- End Session Modal -->
+
     <div id="endSessionModal" class="modal">
-      <div class="modal-content">
-        <h3>جمع‌بندی جلسه</h3>
-        <p>هزینه بازی: <span id="gamePrice"></span></p>
-        <p>هزینه فروشگاه: <span id="shopPrice"></span></p>
-        <p>جمع کل: <span id="totalPrice"></span></p>
-        <button class="primary" onclick="hideEndSessionModal()">بستن</button>
+      <div class="modal-content end-modal">
+        <div class="modal-header">
+          <h3>فاکتور نهایی جلسه</h3>
+        </div>
+        <div class="invoice-details">
+          <div class="invoice-item">
+            <span>هزینه بازی:</span>
+            <span id="gamePrice" class="val"></span>
+          </div>
+          <div class="invoice-item">
+            <span>هزینه فروشگاه:</span>
+            <span id="shopPrice" class="val"></span>
+          </div>
+          <div class="invoice-total">
+            <span>مبلغ قابل پرداخت:</span>
+            <span id="totalPrice" class="total-val"></span>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button class="btn-danger full-width" onclick="confirmEndSession()">
+            تسویه و بستن میز
+          </button>
+          <button
+            class="btn-secondary full-width"
+            onclick="hideEndSessionModal()"
+          >
+            بازگشت به بازی
+          </button>
+        </div>
       </div>
     </div>
+
     <script src="renderer.js"></script>
-</body>
+  </body>
 </html>
