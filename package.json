@@ -3,9 +3,9 @@
   "productName": "Gamagement",
   "author": "M0_kii",
   "description": "Game Center Management App",
-  "copyright": "© 2025 M0_kii",
-  "version": "1.0.0",
-  "main": "main.js",
+  "copyright": "© 2026 M0_kii",
+  "version": "1.0.4",
+  "main": "src/main.js",
   "win": {
     "target": [
       "nsis",

@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 let db;
-const dbPath = path.join(app.getPath("userData"), "gamecenter.db");
+const dbPath = path.join(app.getPath("userData"), "gamagement.db");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -16,7 +16,7 @@ function createWindow() {
     },
   });
   win.removeMenu();
-  win.loadFile("index.html");
+  win.loadFile(path.join(__dirname, "index.html"));
   win.on("close", (e) => {
     e.preventDefault();
     dialog
