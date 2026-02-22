@@ -93,6 +93,31 @@
       </div>
     </div>
 
+    <div id="sessionItemEditModal" class="modal">
+      <div class="modal-content">
+        <h3>ویرایش آیتم</h3>
+        <div class="form-group">
+          <label>نام آیتم</label>
+          <input id="sessionItemEditName" />
+        </div>
+        <div class="form-group">
+          <label>قیمت (تومان)</label>
+          <input id="sessionItemEditPrice" type="number" />
+        </div>
+        <input type="hidden" id="editItemSessionId" />
+        <input type="hidden" id="editItemIndex" />
+        <div class="modal-buttons">
+          <button class="btn-secondary" onclick="hideSessionItemEditModal()">
+            انصراف
+          </button>
+          <button class="btn-success" onclick="saveSessionItemEdit()">
+            بروزرسانی آیتم
+          </button>
+        </div>
+      </div>
+    </div>
+
+
     <div id="endSessionModal" class="modal">
       <div class="modal-content end-modal">
         <div class="modal-header">

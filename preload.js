@@ -14,4 +14,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSession: (id) => ipcRenderer.invoke("getSession", id),
   addShopItemToSession: (data) =>
     ipcRenderer.invoke("addShopItemToSession", data),
+  updateSessionControllers: (data) =>
+    ipcRenderer.invoke("updateSessionControllers", data),
+  updateShopItem: (data) => ipcRenderer.invoke("updateShopItem", data),
+  deleteShopItem: (data) => ipcRenderer.invoke("deleteShopItem", data),
 });

@@ -232,3 +232,62 @@ ipcMain.handle(
     });
   },
 );
+
+ipcMain.handle(
+  "updateSessionControllers",
+  async (event, { sessionId, controllers }) => {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE sessions SET controllers = ? WHERE id = ?`,
+        [controllers, sessionId],
+        (err) => (err ? reject(err) : resolve()),
+      );
+    });
+  },
+);
+
+ipcMain.handle(
+  "updateShopItem",
+  async (event, { sessionId, itemIndex, name, price }) => {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT shopItems FROM sessions WHERE id = ?`,
+        [sessionId],
+        (err, row) => {
+          if (err) return reject(err);
+          let items = JSON.parse(row.shopItems || "[]");
+          if (items[itemIndex]) {
+            items[itemIndex] = { name, price };
+            db.run(
+              `UPDATE sessions SET shopItems = ? WHERE id = ?`,
+              [JSON.stringify(items), sessionId],
+              (err) => (err ? reject(err) : resolve()),
+            );
+          } else {
+            reject("Item not found");
+          }
+        },
+      );
+    });
+  },
+);
+
+ipcMain.handle("deleteShopItem", async (event, { sessionId, itemIndex }) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT shopItems FROM sessions WHERE id = ?`,
+      [sessionId],
+      (err, row) => {
+        if (err) return reject(err);
+        let items = JSON.parse(row.shopItems || "[]");
+        items.splice(itemIndex, 1);
+        db.run(
+          `UPDATE sessions SET shopItems = ? WHERE id = ?`,
+          [JSON.stringify(items), sessionId],
+          (err) => (err ? reject(err) : resolve()),
+        );
+      },
+    );
+  });
+});
+

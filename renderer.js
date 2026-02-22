@@ -89,17 +89,24 @@ async function loadSessionsForConsole(consoleId) {
             <div style="display:flex; justify-content:space-between; align-items:center">
                 <span style="font-size:0.8rem; color:var(--text-muted)">
                     <span class="status-dot ${s.status === "active" ? "pulse" : ""}"></span>
-                    جلسه #${s.id} (${s.controllers} دسته)
+                    جلسه #${s.id}
                 </span>
+                <div style="display:flex; align-items:center; gap:8px">
+                    <button class="selector-btn" onclick="updateSessionControllers(${s.id}, -1)">-</button>
+                    <span id="session_controllers_${s.id}" style="font-weight:bold; min-width:15px; text-align:center">${s.controllers}</span>
+                    <button class="selector-btn" onclick="updateSessionControllers(${s.id}, 1)">+</button>
+                    <span style="font-size:0.75rem; color:var(--text-muted)">دسته</span>
+                </div>
             </div>
             <div class="time" id="time_${s.id}">۰۰:۰۰:۰۰</div>
             <div class="price-display" id="price_${s.id}">${formatPrice(0)}</div>
             
             <div style="display:flex; gap:8px; margin-top:15px">
-                <button class="btn-secondary" id="pauseBtn_${s.id}" onclick="pauseSession(${s.id})" style="display: ${s.status === "active" ? "block" : "none"}">⏸ ${t("pause")}</button>
+                <button class="btn-warning" id="pauseBtn_${s.id}" onclick="pauseSession(${s.id})" style="display: ${s.status === "active" ? "block" : "none"}">⏸ ${t("pause")}</button>
                 <button class="btn-success" id="resumeBtn_${s.id}" onclick="resumeSession(${s.id})" style="display: ${s.status === "paused" ? "block" : "none"}">▶ ${t("resume")}</button>
                 <button class="btn-danger" onclick="endSession(${s.id})">🏁 ${t("endSession")}</button>
             </div>
+
             
             <div id="shop_${s.id}" style="margin-top:12px; font-size:0.8rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.05); padding-top:8px"></div>
             <button class="btn-primary" style="margin-top:10px; font-size:0.8rem; width:100%" onclick="showSessionItemModal(${s.id})">${t("addShop")}</button>
@@ -273,10 +280,72 @@ async function loadShopItemsForSession(id) {
   const session = await window.electronAPI.getSession(id);
   const shopDiv = document.getElementById(`shop_${id}`);
   const items = JSON.parse(session.shopItems || "[]");
-  if (items.length > 0)
-    shopDiv.innerHTML =
-      `<strong>اقلام:</strong> ` + items.map((i) => i.name).join("، ");
+  shopDiv.innerHTML = "";
+  if (items.length > 0) {
+    items.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "shop-item-row";
+      row.innerHTML = `
+                <div class="shop-item-info">
+                    <span>${item.name}</span>
+                    <span class="shop-item-price">${formatPrice(item.price)}</span>
+                </div>
+                <div class="shop-item-actions">
+                    <button class="shop-action-btn edit-text" onclick="editShopItem(${id}, ${index})">ویرایش</button>
+                    <button class="shop-action-btn delete-text" onclick="deleteShopItem(${id}, ${index})">حذف</button>
+                </div>
+            `;
+      shopDiv.appendChild(row);
+    });
+  }
 }
+
+async function updateSessionControllers(id, delta) {
+  const span = document.getElementById(`session_controllers_${id}`);
+  let val = parseInt(span.textContent) + delta;
+  if (val < 1) val = 1;
+  if (val > 4) val = 4;
+  span.textContent = val;
+  await window.electronAPI.updateSessionControllers({ sessionId: id, controllers: val });
+  updateTimeAndPrice(id);
+}
+
+async function editShopItem(sessionId, index) {
+  const session = await window.electronAPI.getSession(sessionId);
+  const items = JSON.parse(session.shopItems || "[]");
+  const item = items[index];
+  if (item) {
+    document.getElementById("sessionItemEditName").value = item.name;
+    document.getElementById("sessionItemEditPrice").value = item.price;
+    document.getElementById("editItemSessionId").value = sessionId;
+    document.getElementById("editItemIndex").value = index;
+    document.getElementById("sessionItemEditModal").style.display = "flex";
+  }
+}
+
+function hideSessionItemEditModal() {
+  document.getElementById("sessionItemEditModal").style.display = "none";
+}
+
+async function saveSessionItemEdit() {
+  const sessionId = parseInt(document.getElementById("editItemSessionId").value);
+  const index = parseInt(document.getElementById("editItemIndex").value);
+  const name = document.getElementById("sessionItemEditName").value.trim();
+  const price = parseFloat(document.getElementById("sessionItemEditPrice").value);
+  if (!name || isNaN(price)) return;
+  await window.electronAPI.updateShopItem({ sessionId, itemIndex: index, name, price });
+  hideSessionItemEditModal();
+  loadShopItemsForSession(sessionId);
+  updateTimeAndPrice(sessionId);
+}
+
+async function deleteShopItem(sessionId, index) {
+  if (!confirm("آیا از حذف این آیتم مطمئن هستید؟")) return;
+  await window.electronAPI.deleteShopItem({ sessionId, itemIndex: index });
+  loadShopItemsForSession(sessionId);
+  updateTimeAndPrice(sessionId);
+}
+
 
 window.addEventListener("DOMContentLoaded", () => {
   loadConsoles();
