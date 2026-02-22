@@ -4,7 +4,7 @@ const texts = {
     title: "Gamagement",
     consoles: "مدیریت کنسول‌ها",
     addConsole: "+ افزودن کنسول",
-    hourly: "تومان / ساعت",
+    hourly: " / ساعت",
     controller: "کنترلر اضافی (ساعت)",
     startSession: "شروع بازی",
     pause: "توقف موقت",
@@ -153,7 +153,8 @@ async function endSession(id) {
   const timeCost = hours * c.hourlyPrice;
   const payingControllers = Math.max(0, s.controllers - 2);
   const ctrlCost = payingControllers * c.controllerPrice * hours;
-  const shopCost = calculateShopCostClient(JSON.parse(s.shopItems || "[]"));
+  const shopItems = JSON.parse(s.shopItems || "[]");
+  const shopCost = shopItems.reduce((sum, item) => sum + item.price, 0);
   const total = timeCost + ctrlCost + shopCost;
 
   document.getElementById("gamePrice").textContent = formatPrice(
@@ -193,8 +194,9 @@ async function updateTimeAndPrice(id) {
   const hours = timeMs / 3600000;
   const total =
     hours * c.hourlyPrice +
-    Math.max(0, s.controllers - 2) * c.controllerPrice * hours +
-    calculateShopCostClient(JSON.parse(s.shopItems || "[]"));
+    Math.max(0, s.controllers - 2) * c.controllerPrice * hours;
+
+  // Shop items are shown in the invoice, not in the live running total
 
   const priceEl = document.getElementById(`price_${id}`);
   if (priceEl) priceEl.textContent = formatPrice(total);
