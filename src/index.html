@@ -10,6 +10,14 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="titlebar">
+    <div id="titlebarDrag" class="titlebar-drag"><span>Gamagement</span></div>
+    <div class="window-controls">
+      <button id="windowClose" class="window-control window-close" aria-label="بستن برنامه" title="بستن برنامه"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m4 4 4 4m0-4-4 4"/></svg></button>
+      <button id="windowMinimize" class="window-control window-minimize" aria-label="کوچک کردن پنجره" title="کوچک کردن پنجره"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 6h6"/></svg></button>
+      <button id="windowMaximize" class="window-control window-maximize" aria-label="بزرگ کردن پنجره" title="بزرگ کردن پنجره"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 5V3h2m2 0h2v2m0 2v2H7M5 9H3V7"/></svg></button>
+    </div>
+  </div>
   <a class="skip-link" href="#main">رفتن به محتوا</a>
   <header>
     <div class="header-content">
@@ -80,8 +88,16 @@
     <p class="form-error" role="alert"></p>
     <div id="receiptButtons" class="modal-buttons"></div>
   </dialog>
+  <dialog id="confirmationDialog" class="confirmation-dialog" aria-labelledby="confirmationTitle" aria-describedby="confirmationMessage">
+    <div class="confirmation-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v5m0 3h.01M10 3h4l8 16-2 2H4l-2-2Z"/></svg></div>
+    <h3 id="confirmationTitle">تأیید عملیات</h3>
+    <p id="confirmationMessage"></p>
+    <div class="modal-buttons"><button id="confirmationAccept" class="btn-primary" type="button">تأیید</button><button id="confirmationCancel" class="btn-secondary" type="button" autofocus>انصراف</button></div>
+  </dialog>
+  <script src="confirmation.js"></script>
   <script src="api.js"></script>
   <script src="format.js"></script>
   <script src="renderer.js"></script>
+  <script src="window.js"></script>
 </body>
 </html>

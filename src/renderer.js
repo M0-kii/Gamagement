@@ -197,7 +197,7 @@ async function saveConsole() {
   notify("کنسول ذخیره شد.");
 }
 async function archiveConsole(id) {
-  if (!await window.appAPI.confirm("این کنسول بایگانی شود؟ فاکتورهای قبلی حفظ می‌شوند.")) return;
+  if (!await window.appAPI.confirm("این کنسول بایگانی شود؟ فاکتورهای قبلی حفظ می‌شوند.", { confirmLabel: "بایگانی کنسول", danger: false })) return;
   await window.appAPI.archiveConsole(id);
   await reloadDashboard();
 }
@@ -216,7 +216,7 @@ async function saveSale() {
   await reloadDashboard();
 }
 async function removeItem(id) {
-  if (!await window.appAPI.confirm("این خرید از فاکتور جلسه حذف شود؟")) return;
+  if (!await window.appAPI.confirm("این خرید از فاکتور جلسه حذف شود؟", { confirmLabel: "حذف خرید" })) return;
   await window.appAPI.deleteSessionItem(id);
   await reloadDashboard();
 }
@@ -366,7 +366,7 @@ function toggleSidebar() {
 async function clearHistory() {
   const menu = document.querySelector(".history-menu");
   if (menu) menu.open = false;
-  if (!await window.appAPI.confirm("همه جلسه‌های پرداخت‌شده و فاکتورهای آن‌ها برای همیشه حذف شوند؟ این کار قابل بازگشت نیست. جلسه‌های باز حفظ می‌شوند.")) return;
+  if (!await window.appAPI.confirm("همه جلسه‌های پرداخت‌شده و فاکتورهای آن‌ها برای همیشه حذف شوند؟ این کار قابل بازگشت نیست. جلسه‌های باز حفظ می‌شوند.", { title: "پاک کردن همه سوابق", confirmLabel: "حذف همه سوابق" })) return;
   const removed = await window.appAPI.clearHistory();
   state.filter.page = 1;
   await loadHistory();
@@ -425,7 +425,7 @@ document.addEventListener("keydown", (event) => {
     const menu = document.querySelector(".history-menu");
     if (menu?.open) menu.open = false;
   }
-  if (event.key === "Escape" && state.busy && document.querySelector("dialog[open]")) event.preventDefault();
+  if (event.key === "Escape" && state.busy && !$("confirmationDialog").open && document.querySelector("dialog[open]")) event.preventDefault();
 });
 window.addEventListener("DOMContentLoaded", async () => {
   let theme = "dark";

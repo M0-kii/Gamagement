@@ -19,6 +19,11 @@
     clearHistory: () => invoke("clear_history"),
     getHistory: (filter) => invoke("get_history", { filter }),
     exportHistory: (filter) => invoke("export_history", { filter }),
-    confirm: (message) => invoke("ask_confirmation", { message }),
+    confirm: (message, options) => window.confirmation.ask(message, options),
+    minimizeWindow: () => invoke("minimize_window"),
+    toggleMaximizeWindow: () => invoke("toggle_maximize_window"),
+    isWindowMaximized: () => invoke("is_window_maximized"),
+    startWindowDragging: () => invoke("start_window_dragging"),
+    closeWindow: () => invoke("close_window"),
   };
 })();

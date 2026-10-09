@@ -39,14 +39,24 @@ test("every frontend IPC command is registered in Tauri and preserves named argu
     ["clearHistory", "clear_history", undefined, {}],
     ["getHistory", "get_history", data, { filter: data }],
     ["exportHistory", "export_history", data, { filter: data }],
-    ["confirm", "ask_confirmation", "Confirm?", { message: "Confirm?" }],
+    ["minimizeWindow", "minimize_window", undefined, {}],
+    ["toggleMaximizeWindow", "toggle_maximize_window", undefined, {}],
+    ["isWindowMaximized", "is_window_maximized", undefined, {}],
+    ["startWindowDragging", "start_window_dragging", undefined, {}],
+    ["closeWindow", "close_window", undefined, {}],
   ];
   for (const [method, command, argument, args] of cases) {
     assert.ok(handlers.includes(command), command);
     assert.equal(await window.appAPI[method](argument), 42);
     assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { command, args });
   }
-  assert.equal(cases.length, Object.keys(window.appAPI).length);
+  assert.equal(cases.length + 1, Object.keys(window.appAPI).length);
+  let prompt;
+  window.confirmation = { ask: async (message, options) => { prompt = { message, options }; return true; } };
+  const options = { confirmLabel: "Delete" };
+  assert.equal(await window.appAPI.confirm("Confirm?", options), true);
+  assert.deepEqual(prompt, { message: "Confirm?", options });
+  assert.equal(calls.length, cases.length);
 });
 
 test("Jalali dates accept Persian digits and produce inclusive Tehran date boundaries", () => {

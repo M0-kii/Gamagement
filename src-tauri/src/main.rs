@@ -9,12 +9,8 @@ mod tests;
 
 use database::Database;
 use models::*;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-use tauri::{Manager, State};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+use tauri::{Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command(async)]
 fn add_console(db: State<'_, Database>, data: ConsoleInput) -> AppResult<i64> {
@@ -181,31 +177,30 @@ async fn export_history(
     .map_err(|e| e.to_string())?
 }
 #[tauri::command]
-async fn ask_confirmation(app: tauri::AppHandle, message: String) -> AppResult<bool> {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .message(message)
-            .title("تایید")
-            .buttons(MessageDialogButtons::OkCancelCustom(
-                "بله".into(),
-                "خیر".into(),
-            ))
-            .blocking_show()
-    })
-    .await
-    .map_err(|e| e.to_string())
+fn minimize_window(window: tauri::Window) -> AppResult<()> {
+    window.minimize().map_err(database::err)
 }
-
 #[tauri::command]
-async fn show_message(app: tauri::AppHandle, message: String) -> AppResult<()> {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .message(message)
-            .title("Gamagement")
-            .blocking_show();
-    })
-    .await
-    .map_err(|e| e.to_string())
+fn is_window_maximized(window: tauri::Window) -> AppResult<bool> {
+    window.is_maximized().map_err(database::err)
+}
+#[tauri::command]
+fn toggle_maximize_window(window: tauri::Window) -> AppResult<bool> {
+    if window.is_maximized().map_err(database::err)? {
+        window.unmaximize().map_err(database::err)?;
+        Ok(false)
+    } else {
+        window.maximize().map_err(database::err)?;
+        Ok(true)
+    }
+}
+#[tauri::command]
+fn start_window_dragging(window: tauri::Window) -> AppResult<()> {
+    window.start_dragging().map_err(database::err)
+}
+#[tauri::command]
+fn close_window(window: tauri::Window) -> AppResult<()> {
+    window.destroy().map_err(database::err)
 }
 
 fn legacy_database_path() -> Option<std::path::PathBuf> {
@@ -233,33 +228,17 @@ fn main() {
             app.manage(Database(std::sync::Mutex::new(db)));
             Ok(())
         })
-        .on_window_event({
-            let asking = Arc::new(AtomicBool::new(false));
-            move |window, event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    if asking.swap(true, Ordering::SeqCst) {
-                        return;
-                    }
-                    let asking = asking.clone();
-                    let window = window.clone();
-                    window
-                        .app_handle()
-                        .dialog()
-                        .message("آیا مطمئن هستید که می‌خواهید برنامه را ببندید؟")
-                        .title("تایید")
-                        .buttons(MessageDialogButtons::OkCancelCustom(
-                            "بله".into(),
-                            "خیر".into(),
-                        ))
-                        .show(move |confirmed| {
-                            asking.store(false, Ordering::SeqCst);
-                            if confirmed {
-                                let _ = window.destroy();
-                            }
-                        });
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                api.prevent_close();
+                let _ = window.emit("window-close-requested", ());
+            }
+            tauri::WindowEvent::Resized(_) => {
+                if let Ok(maximized) = window.is_maximized() {
+                    let _ = window.emit("window-maximized-changed", maximized);
                 }
             }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             add_console,
@@ -285,8 +264,11 @@ fn main() {
             get_history,
             clear_history,
             export_history,
-            ask_confirmation,
-            show_message
+            minimize_window,
+            toggle_maximize_window,
+            is_window_maximized,
+            start_window_dragging,
+            close_window
         ])
         .run(tauri::generate_context!())
         .expect("Failed to run Gamagement");

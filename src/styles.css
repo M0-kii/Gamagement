@@ -1414,3 +1414,28 @@ html[data-input="keyboard"] header, html[data-input="keyboard"] .container, html
 
 .brand, .sidebar-info { overflow: hidden; }
 nav button span, .theme-button span { white-space: nowrap; overflow: hidden; }
+:root { --titlebar-height: 40px; }
+.titlebar { position:fixed; top:0; left:0; right:0; height:var(--titlebar-height); z-index:25; background:#eeeef2; border-bottom:1px solid var(--border); user-select:none; }
+[data-theme="dark"] .titlebar { background:#262629; }
+.titlebar-drag { height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; font-weight:600; direction:ltr; touch-action:none; }
+.window-controls { position:absolute; left:16px; top:0; height:100%; display:flex; gap:9px; align-items:center; direction:ltr; }
+.window-control { width:15px; height:15px; padding:0; border-radius:50%; border:1px solid #0002; display:grid; place-items:center; box-shadow:none; }
+.window-control svg { width:12px; height:12px; fill:none; stroke:#292929; stroke-width:1.2; opacity:.55; }
+.window-controls:hover svg, .window-control:focus-visible svg { opacity:1; }
+.window-close { background:#ff6159; }
+.window-minimize { background:#febc2e; }
+.window-maximize { background:#28c840; }
+header { inset-block-start:var(--titlebar-height); }
+.container { padding-top:var(--titlebar-height); }
+.confirmation-dialog { width:min(420px,calc(100% - 32px)); }
+.confirmation-dialog h3 { margin-top:15px; }
+#confirmationMessage { font-size:13px; color:var(--muted); line-height:1.9; }
+.confirmation-symbol { display:grid; place-items:center; width:44px; height:44px; border-radius:12px; background:#c4313112; color:var(--danger); }
+.confirmation-symbol svg { width:26px; height:26px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.btn-primary.btn-danger { background:linear-gradient(#d94b4b,#bf3030); border-color:#ab2828; color:white; }
+@media(max-width:520px) {
+  body { padding-top:var(--titlebar-height); }
+  .container { padding-top:0; }
+  html[data-sidebar="collapsed"] header { top:var(--titlebar-height); height:calc(100vh - var(--titlebar-height)); }
+}
+@media print { .titlebar { display:none!important; } body { padding-top:0; } }
