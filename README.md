@@ -1,82 +1,119 @@
-# Gamagement 🎮
+# Gamagement
 
-Game center management with a Tauri 2 desktop shell, a Rust backend, and SQLite.
-The Persian, RTL interface keeps console management, live session timers,
-pause/resume, controller pricing, shop items, and checkout.
+Desktop management for game centers, built with Tauri 2, Rust, and SQLite.
+The interface is Persian and right-to-left.
 
-## Requirements
+## Features
 
-- Node.js 22 or newer and pnpm
-- Stable Rust installed through rustup
-- On Windows: Microsoft C++ Build Tools (Desktop development with C++) and WebView2
-- For other platforms, install the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+- Console dashboard with available, playing, paused, and checkout states.
+- One new session per physical console.
+- Session rates fixed at start; controller changes apply to subsequent play.
+- Paused time excluded from billing, with the original start timestamp retained.
+- Checkout freezes the bill. Confirming payment saves the displayed amount;
+  cancelling restores the previous session state.
+- Product catalog with unit prices, quantities, and stock management.
+- Searchable receipts, Jalali date filters, daily revenue, console usage, and CSV export.
+- Printable receipts and archived consoles/products with retained history.
 
-## Development
+## Run
+
+Install Node.js 22 or newer, pnpm, and stable Rust. Windows also requires
+Microsoft C++ Build Tools with the Desktop development with C++ workload and
+WebView2. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+for platform setup.
 
 ```sh
 pnpm install
 pnpm start
 ```
 
-The frontend uses plain HTML, CSS, and JavaScript. A small Node script copies
-the interface and assets into `dist/`; no frontend framework is required.
-Restart `pnpm start` after changing frontend sources to refresh this copy.
+The frontend uses HTML, CSS, and JavaScript. Restart the development app after
+changing frontend files; `pnpm build:frontend` copies them to `dist/`.
 
-## Production
+## Build
 
 ```sh
 pnpm dist
 ```
 
-On Windows this builds the NSIS installer in
-`src-tauri/target/release/bundle/nsis/`. The standalone executable is
-`src-tauri/target/release/gamagement.exe` and requires WebView2.
-`pnpm build` builds the configured bundle. The default bundle target is Windows
-NSIS; when building on macOS or Linux, choose an appropriate target with
+The Windows installer is written to `src-tauri/target/release/bundle/nsis/`.
+The executable is `src-tauri/target/release/gamagement.exe`; it requires WebView2.
+For macOS or Linux, select a platform bundle with
 `pnpm tauri build --bundles app` or `pnpm tauri build --bundles deb`.
 
-## Data migration
+## Billing
 
-The SQLite schema and existing pricing rules are preserved: the first two
-controllers are included, extra controllers are charged per hour, paused time
-is excluded, and shop purchases are added at checkout. Changing controller
-counts or console rates applies the new rate to the session, as in the
-previous version.
+Prices and saved totals use integer tomans. Play charges are accumulated across
+controller segments, then rounded once to the nearest toman; halves round up.
+The first two controllers are included in the hourly price.
 
-The database is stored in the data subdirectory of Tauri's local app data directory. On Windows this is
-`%LOCALAPPDATA%/dev.m0-kii.gamagement/data/gamagement.db`.
+Console name and rates are saved with each session. Product name and unit price
+are saved with each purchase. Later edits do not change those snapshots.
+Editing a purchase quantity uses its original unit price.
 
-On the first launch, if that database does not exist, Gamagement checks the
-previous Electron location:
-`%APPDATA%/dev.m0-kii.gamagement/gamagement.db` on Windows,
-`~/Library/Application Support/dev.m0-kii.gamagement/gamagement.db` on macOS, or
+Opening checkout stops the timer and prevents session edits. Payment saves the
+frozen bill. Returning to play excludes the checkout interval and restores the
+previous active or paused state. Pending checkouts survive an app restart.
+
+Stock is deducted when a product is added to a session. Reducing its quantity
+or removing the purchase returns the difference to stock. Archived products
+remain referenced by existing receipts.
+
+## History and reports
+
+Date filters accept Jalali dates, including Persian digits, such as
+`۱۴۰۵/۰۷/۱۷`. The end date includes the entire selected day. Reports use payment
+time in the Asia/Tehran timezone and include only settled sessions.
+
+CSV export includes every matching receipt, independently of the current page.
+Amounts are in tomans and exported timestamps are UTC. Receipts can be reopened
+and printed from the history screen.
+
+## Data and upgrades
+
+On Windows the database is located at:
+
+```text
+%LOCALAPPDATA%/dev.m0-kii.gamagement/data/gamagement.db
+```
+
+On first launch, the app can copy an earlier Electron database from
+`%APPDATA%/dev.m0-kii.gamagement/gamagement.db`. The corresponding locations are
+`~/Library/Application Support/dev.m0-kii.gamagement/gamagement.db` on macOS and
 `$XDG_CONFIG_HOME/dev.m0-kii.gamagement/gamagement.db` (defaulting to
-`~/.config/`) on Linux. It copies the database using SQLite's backup API,
-checks the copy, and leaves the original untouched. Close the old Electron app
-before the first launch. An existing Tauri database is never overwritten.
-Back up the database before moving installations between machines.
+`~/.config/`) on Linux. The source is left untouched.
 
-## Verification
+An existing database is upgraded transactionally. Before upgrading an older
+schema, the app creates `gamagement.pre-v2.db` beside the database. Close the old
+application before upgrading and keep a separate backup of operational data.
+
+Legacy receipts retain their saved totals, rounded to whole tomans. Older
+versions did not retain original pause-adjusted start times or controller
+change intervals; these cannot be reconstructed. Migrated open sessions begin
+segment tracking using the stored start time, controller count, and current
+console rates. Existing duplicate sessions are kept so they can be settled;
+new duplicate sessions are blocked.
+
+## Development checks
 
 ```sh
 pnpm test
 pnpm test:frontend
-pnpm build:frontend
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
-Rust tests cover billing, pause/resume, checkout persistence, validation,
-shop edits, and legacy database migration. Frontend tests check IPC argument
-mapping and packaged asset references.
-
-## Structure
+The tests cover billing, checkout, stock changes, reporting, Jalali dates,
+command wiring, and migration rollback.
 
 ```text
-assets/                  Application icon and local fonts
-src/                     Persian HTML/CSS UI, renderer, Tauri API bridge
-scripts/                 Static frontend packaging
-tests/                   Frontend integration checks
-src-tauri/src/           Rust commands and SQLite business logic
-src-tauri/               Tauri configuration, capabilities, Cargo dependencies
+src/                  Interface, API bridge, and date formatting
+assets/               Icon and Vazirmatn fonts
+scripts/              Frontend packaging
+tests/                Frontend regression tests
+src-tauri/src/        Desktop commands, database, migrations, and reports
 ```
 
-Developed by [M0_kii](https://github.com/M0-kii).
+The bundled Vazirmatn fonts are distributed under the
+[SIL Open Font License](assets/fonts/OFL.txt).
+
+Maintained by [M0_kii](https://github.com/M0-kii).

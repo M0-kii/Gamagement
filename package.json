@@ -3,7 +3,7 @@
   "productName": "Gamagement",
   "author": "M0_kii",
   "description": "Game Center Management App",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "start": "tauri dev",

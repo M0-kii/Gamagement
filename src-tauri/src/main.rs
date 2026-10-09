@@ -1,8 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod database;
+mod models;
+mod reports;
+mod schema;
+#[cfg(test)]
+mod tests;
 
-use database::*;
+use database::Database;
+use models::*;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -23,33 +29,36 @@ fn update_console(db: State<'_, Database>, data: ConsoleInput) -> AppResult<()> 
 }
 
 #[tauri::command(async)]
-fn delete_console(db: State<'_, Database>, id: i64) -> AppResult<()> {
+fn archive_console(db: State<'_, Database>, id: i64) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::delete_console(&conn, id)
+    database::archive_console(&conn, id)
 }
 
 #[tauri::command(async)]
-fn get_console(db: State<'_, Database>, id: i64) -> AppResult<Console> {
+fn get_consoles(
+    db: State<'_, Database>,
+    include_archived: Option<bool>,
+) -> AppResult<Vec<Console>> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::get_console(&conn, id)
+    database::get_consoles(&conn, include_archived.unwrap_or(false))
 }
 
 #[tauri::command(async)]
-fn get_consoles(db: State<'_, Database>) -> AppResult<Vec<Console>> {
+fn get_dashboard(db: State<'_, Database>) -> AppResult<Vec<ConsoleCard>> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::get_consoles(&conn)
+    database::dashboard(&conn)
 }
 
 #[tauri::command(async)]
 fn start_session(db: State<'_, Database>, data: StartInput) -> AppResult<i64> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::start_session(&conn, data)
+    database::start_session_at(&conn, data, chrono::Utc::now())
 }
 
 #[tauri::command(async)]
 fn pause_session(db: State<'_, Database>, id: i64) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::pause_session(&conn, id)
+    database::pause_session_at(&conn, id, chrono::Utc::now())
 }
 
 #[tauri::command(async)]
@@ -59,47 +68,106 @@ fn resume_session(db: State<'_, Database>, id: i64) -> AppResult<()> {
 }
 
 #[tauri::command(async)]
-fn end_session(db: State<'_, Database>, id: i64) -> AppResult<Invoice> {
+fn get_invoice(db: State<'_, Database>, id: i64) -> AppResult<Invoice> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::end_session(&conn, id)
+    database::invoice_at(&conn, id, chrono::Utc::now())
 }
 
 #[tauri::command(async)]
-fn get_session(db: State<'_, Database>, id: i64) -> AppResult<Session> {
+fn prepare_checkout(db: State<'_, Database>, id: i64) -> AppResult<Invoice> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::get_session(&conn, id)
+    database::prepare_checkout_at(&conn, id, chrono::Utc::now())
 }
 
 #[tauri::command(async)]
-fn get_sessions_for_console(db: State<'_, Database>, console_id: i64) -> AppResult<Vec<Session>> {
+fn cancel_checkout(db: State<'_, Database>, id: i64) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::get_sessions_for_console(&conn, console_id)
+    database::cancel_checkout_at(&conn, id, chrono::Utc::now())
 }
 
 #[tauri::command(async)]
-fn add_shop_item_to_session(db: State<'_, Database>, data: ShopInput) -> AppResult<()> {
+fn confirm_checkout(db: State<'_, Database>, id: i64) -> AppResult<Invoice> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::save_shop_item(&conn, data, false)
+    database::confirm_checkout_at(&conn, id, chrono::Utc::now())
 }
 
 #[tauri::command(async)]
-fn update_shop_item(db: State<'_, Database>, data: ShopInput) -> AppResult<()> {
+fn get_products(db: State<'_, Database>) -> AppResult<Vec<Product>> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::save_shop_item(&conn, data, true)
+    database::get_products(&conn)
 }
 
 #[tauri::command(async)]
-fn delete_shop_item(db: State<'_, Database>, data: DeleteItemInput) -> AppResult<()> {
+fn save_product(db: State<'_, Database>, data: ProductInput) -> AppResult<i64> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::delete_shop_item(&conn, data)
+    database::save_product(&conn, data)
+}
+
+#[tauri::command(async)]
+fn archive_product(db: State<'_, Database>, id: i64) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::archive_product(&conn, id)
+}
+
+#[tauri::command(async)]
+fn add_product_to_session(db: State<'_, Database>, data: AddProductInput) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::add_product_to_session(&conn, data)
+}
+
+#[tauri::command(async)]
+fn update_item_quantity(db: State<'_, Database>, data: ItemQuantityInput) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::update_item_quantity(&conn, data)
+}
+
+#[tauri::command(async)]
+fn delete_session_item(db: State<'_, Database>, id: i64) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::delete_session_item(&conn, id)
+}
+
+#[tauri::command(async)]
+fn get_history(db: State<'_, Database>, filter: HistoryFilter) -> AppResult<HistoryPage> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    reports::get_history(&conn, filter)
 }
 
 #[tauri::command(async)]
 fn update_session_controllers(db: State<'_, Database>, data: ControllersInput) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    database::update_session_controllers(&conn, data)
+    database::update_session_controllers_at(&conn, data, chrono::Utc::now())
 }
 
+#[tauri::command]
+async fn export_history(
+    app: tauri::AppHandle,
+    db: State<'_, Database>,
+    filter: HistoryFilter,
+) -> AppResult<bool> {
+    let csv = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        reports::export_history(&conn, filter)?
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = app
+            .dialog()
+            .file()
+            .add_filter("CSV", &["csv"])
+            .set_file_name("gamagement-sessions.csv")
+            .blocking_save_file();
+        match file {
+            Some(file) => {
+                let path = file.into_path().map_err(|e| e.to_string())?;
+                std::fs::write(path, csv).map_err(|e| e.to_string())?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 #[tauri::command]
 async fn ask_confirmation(app: tauri::AppHandle, message: String) -> AppResult<bool> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -145,11 +213,10 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // Electron stores userData under APPDATA; Tauri uses local app data.
             let directory = app.path().app_local_data_dir()?.join("data");
             std::fs::create_dir_all(&directory)?;
             let legacy = legacy_database_path();
-            let db = open_database(&directory.join("gamagement.db"), legacy.as_deref())
+            let db = database::open_database(&directory.join("gamagement.db"), legacy.as_deref())
                 .map_err(std::io::Error::other)?;
             app.manage(Database(std::sync::Mutex::new(db)));
             Ok(())
@@ -185,19 +252,25 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             add_console,
             update_console,
-            delete_console,
-            get_console,
+            archive_console,
             get_consoles,
+            get_dashboard,
+            update_session_controllers,
             start_session,
             pause_session,
             resume_session,
-            end_session,
-            get_session,
-            get_sessions_for_console,
-            add_shop_item_to_session,
-            update_shop_item,
-            delete_shop_item,
-            update_session_controllers,
+            get_invoice,
+            prepare_checkout,
+            cancel_checkout,
+            confirm_checkout,
+            get_products,
+            save_product,
+            archive_product,
+            add_product_to_session,
+            update_item_quantity,
+            delete_session_item,
+            get_history,
+            export_history,
             ask_confirmation,
             show_message
         ])

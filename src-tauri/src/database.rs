@@ -1,111 +1,21 @@
+use crate::models::*;
 use chrono::{DateTime, SecondsFormat, Utc};
 use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Mutex};
 
-pub type AppResult<T> = Result<T, String>;
 pub struct Database(pub Mutex<Connection>);
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Console {
-    pub id: i64,
-    pub name: String,
-    pub hourly_price: f64,
-    pub controller_price: f64,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConsoleInput {
-    pub id: Option<i64>,
-    pub name: String,
-    pub hourly_price: f64,
-    pub controller_price: f64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Session {
-    pub id: i64,
-    pub console_id: i64,
-    pub start_time: String,
-    pub pause_time: Option<String>,
-    pub end_time: Option<String>,
-    pub controllers: i64,
-    pub status: String,
-    pub shop_items: String,
-    pub total_price: Option<f64>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StartInput {
-    pub console_id: i64,
-    pub controllers: i64,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ControllersInput {
-    pub session_id: i64,
-    pub controllers: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ShopItem {
-    pub name: String,
-    pub price: f64,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ShopInput {
-    pub session_id: i64,
-    pub name: String,
-    pub price: f64,
-    pub item_index: Option<usize>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeleteItemInput {
-    pub session_id: i64,
-    pub item_index: usize,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Invoice {
-    pub game_cost: f64,
-    pub shop_cost: f64,
-    pub total: f64,
-}
-
-fn error(e: impl std::fmt::Display) -> String {
+pub fn err(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
-
-pub fn init(conn: &Connection) -> AppResult<()> {
-    conn.busy_timeout(std::time::Duration::from_secs(5))
-        .map_err(error)?;
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS consoles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-            hourlyPrice REAL NOT NULL, controllerPrice REAL NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, consoleId INTEGER,
-            startTime TEXT, pauseTime TEXT, endTime TEXT, controllers INTEGER,
-            status TEXT, shopItems TEXT, totalPrice REAL
-        );
-        CREATE INDEX IF NOT EXISTS sessions_console_open ON sessions(consoleId, endTime);",
-    )
-    .map_err(error)
+pub fn iso(time: DateTime<Utc>) -> String {
+    time.to_rfc3339_opts(SecondsFormat::Millis, true)
+}
+pub fn parse_time(time: &str) -> AppResult<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(time)
+        .map(|t| t.with_timezone(&Utc))
+        .map_err(err)
 }
 
-// SQLite's backup API also includes committed data in an Electron WAL file.
-// Publish only a finished, validated copy; never modify the original database.
 pub fn open_database(destination: &Path, legacy: Option<&Path>) -> AppResult<Connection> {
     if !destination.exists() {
         if let Some(source) = legacy.filter(|p| p.is_file() && *p != destination) {
@@ -113,24 +23,12 @@ pub fn open_database(destination: &Path, legacy: Option<&Path>) -> AppResult<Con
             let migration = (|| {
                 let source =
                     Connection::open_with_flags(source, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-                        .map_err(error)?;
-                let mut copy = Connection::open(&pending).map_err(error)?;
-                {
-                    let backup =
-                        rusqlite::backup::Backup::new(&source, &mut copy).map_err(error)?;
-                    backup
-                        .run_to_completion(100, std::time::Duration::from_millis(10), None)
-                        .map_err(error)?;
-                }
-                let check: String = copy
-                    .query_row("PRAGMA integrity_check", [], |r| r.get(0))
-                    .map_err(error)?;
-                if check != "ok" {
-                    return Err("Legacy database integrity check failed".into());
-                }
-                init(&copy)?;
-                copy.close().map_err(|(_, e)| error(e))?;
-                std::fs::rename(&pending, destination).map_err(error)
+                        .map_err(err)?;
+                let mut copy = Connection::open(&pending).map_err(err)?;
+                backup(&source, &mut copy)?;
+                crate::schema::init(&copy)?;
+                copy.close().map_err(|(_, e)| err(e))?;
+                std::fs::rename(&pending, destination).map_err(err)
             })();
             if migration.is_err() {
                 let _ = std::fs::remove_file(&pending);
@@ -138,68 +36,68 @@ pub fn open_database(destination: &Path, legacy: Option<&Path>) -> AppResult<Con
             migration?;
         }
     }
-    let conn = Connection::open(destination).map_err(error)?;
-    init(&conn)?;
+    let conn = Connection::open(destination).map_err(err)?;
+    let version: i64 = conn
+        .pragma_query_value(None, "user_version", |r| r.get(0))
+        .map_err(err)?;
+    let has_sessions: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='sessions')",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(err)?;
+    let safety_copy = destination.with_extension("pre-v2.db");
+    if version < 2 && has_sessions && !safety_copy.exists() {
+        let mut copy = Connection::open(&safety_copy).map_err(err)?;
+        backup(&conn, &mut copy)?;
+    }
+    crate::schema::init(&conn)?;
+    conn.pragma_update(None, "journal_mode", "WAL")
+        .map_err(err)?;
     Ok(conn)
 }
 
-fn console_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Console> {
-    Ok(Console {
-        id: row.get(0)?,
-        name: row.get(1)?,
-        hourly_price: row.get(2)?,
-        controller_price: row.get(3)?,
-    })
+fn backup(source: &Connection, destination: &mut Connection) -> AppResult<()> {
+    {
+        let backup = rusqlite::backup::Backup::new(source, destination).map_err(err)?;
+        backup
+            .run_to_completion(100, std::time::Duration::from_millis(10), None)
+            .map_err(err)?;
+    }
+    let check: String = destination
+        .query_row("PRAGMA integrity_check", [], |r| r.get(0))
+        .map_err(err)?;
+    if check == "ok" {
+        Ok(())
+    } else {
+        Err("Database integrity check failed".into())
+    }
 }
-fn session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Session> {
-    Ok(Session {
-        id: row.get(0)?,
-        console_id: row.get(1)?,
-        start_time: row.get(2)?,
-        pause_time: row.get(3)?,
-        end_time: row.get(4)?,
-        controllers: row.get(5)?,
-        status: row.get(6)?,
-        shop_items: row
-            .get::<_, Option<String>>(7)?
-            .unwrap_or_else(|| "[]".into()),
-        total_price: row.get(8)?,
-    })
-}
-const SESSION_COLUMNS: &str =
-    "id, consoleId, startTime, pauseTime, endTime, controllers, status, shopItems, totalPrice";
 
-pub fn get_console(conn: &Connection, id: i64) -> AppResult<Console> {
-    conn.query_row(
-        "SELECT id, name, hourlyPrice, controllerPrice FROM consoles WHERE id = ?",
-        [id],
-        console_row,
-    )
-    .map_err(error)
-}
-pub fn get_consoles(conn: &Connection) -> AppResult<Vec<Console>> {
-    let mut stmt = conn
-        .prepare("SELECT id, name, hourlyPrice, controllerPrice FROM consoles ORDER BY id")
-        .map_err(error)?;
-    let rows = stmt.query_map([], console_row).map_err(error)?;
-    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
-}
-fn validate_price(price: f64) -> AppResult<()> {
-    if price.is_finite() && price >= 0.0 {
-        Ok(())
-    } else {
-        Err("قیمت باید عددی نامنفی باشد".into())
-    }
-}
-fn validate_name(name: &str) -> AppResult<()> {
-    if name.trim().is_empty() {
-        Err("نام الزامی است".into())
+fn name(value: &str) -> AppResult<()> {
+    if value.trim().is_empty() || value.chars().count() > 100 {
+        Err("نام باید بین ۱ و ۱۰۰ نویسه باشد".into())
     } else {
         Ok(())
     }
 }
-fn validate_controllers(controllers: i64) -> AppResult<()> {
-    if (1..=4).contains(&controllers) {
+fn price(value: i64) -> AppResult<()> {
+    if (0..=1_000_000_000).contains(&value) {
+        Ok(())
+    } else {
+        Err("قیمت باید عدد صحیح بین صفر و یک میلیارد تومان باشد".into())
+    }
+}
+fn quantity(value: i64) -> AppResult<()> {
+    if (1..=100_000).contains(&value) {
+        Ok(())
+    } else {
+        Err("تعداد نامعتبر است".into())
+    }
+}
+fn controllers(value: i64) -> AppResult<()> {
+    if (1..=4).contains(&value) {
         Ok(())
     } else {
         Err("تعداد دسته باید بین ۱ و ۴ باشد".into())
@@ -212,398 +110,476 @@ fn changed(rows: usize) -> AppResult<()> {
         Err("رکورد پیدا نشد یا وضعیت آن تغییر کرده است".into())
     }
 }
+const CONSOLE_COLUMNS: &str = "id,name,hourlyPrice,controllerPrice,archived";
+fn console_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Console> {
+    Ok(Console {
+        id: r.get(0)?,
+        name: r.get(1)?,
+        hourly_price: r.get(2)?,
+        controller_price: r.get(3)?,
+        archived: r.get(4)?,
+    })
+}
+pub fn get_console(conn: &Connection, id: i64) -> AppResult<Console> {
+    conn.query_row(
+        &format!("SELECT {CONSOLE_COLUMNS} FROM consoles WHERE id=?"),
+        [id],
+        console_row,
+    )
+    .map_err(err)
+}
+pub fn get_consoles(conn: &Connection, archived: bool) -> AppResult<Vec<Console>> {
+    let mut q = conn
+        .prepare(&format!(
+            "SELECT {CONSOLE_COLUMNS} FROM consoles WHERE (? OR archived=0) ORDER BY id"
+        ))
+        .map_err(err)?;
+    let rows = q.query_map([archived], console_row).map_err(err)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(err)
+}
 pub fn add_console(conn: &Connection, data: ConsoleInput) -> AppResult<i64> {
-    validate_name(&data.name)?;
-    validate_price(data.hourly_price)?;
-    validate_price(data.controller_price)?;
+    name(&data.name)?;
+    price(data.hourly_price)?;
+    price(data.controller_price)?;
     conn.execute(
-        "INSERT INTO consoles (name, hourlyPrice, controllerPrice) VALUES (?, ?, ?)",
+        "INSERT INTO consoles (name,hourlyPrice,controllerPrice) VALUES (?,?,?)",
         params![data.name.trim(), data.hourly_price, data.controller_price],
     )
-    .map_err(error)?;
+    .map_err(err)?;
     Ok(conn.last_insert_rowid())
 }
 pub fn update_console(conn: &Connection, data: ConsoleInput) -> AppResult<()> {
-    validate_name(&data.name)?;
-    validate_price(data.hourly_price)?;
-    validate_price(data.controller_price)?;
+    name(&data.name)?;
+    price(data.hourly_price)?;
+    price(data.controller_price)?;
     changed(
         conn.execute(
-            "UPDATE consoles SET name = ?, hourlyPrice = ?, controllerPrice = ? WHERE id = ?",
+            "UPDATE consoles SET name=?,hourlyPrice=?,controllerPrice=? WHERE id=? AND archived=0",
             params![
                 data.name.trim(),
                 data.hourly_price,
                 data.controller_price,
-                data.id.ok_or("Missing console id")?
+                data.id.ok_or("شناسه کنسول الزامی است")?
             ],
         )
-        .map_err(error)?,
+        .map_err(err)?,
     )
 }
-pub fn delete_console(conn: &Connection, id: i64) -> AppResult<()> {
-    let active: bool = conn
+pub fn archive_console(conn: &Connection, id: i64) -> AppResult<()> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let occupied: bool = tx
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM sessions WHERE consoleId = ? AND endTime IS NULL)",
+            "SELECT EXISTS(SELECT 1 FROM sessions WHERE consoleId=? AND endTime IS NULL)",
             [id],
             |r| r.get(0),
         )
-        .map_err(error)?;
-    if active {
+        .map_err(err)?;
+    if occupied {
         return Err("ابتدا جلسه‌های باز این کنسول را تسویه کنید".into());
     }
     changed(
-        conn.execute("DELETE FROM consoles WHERE id = ?", [id])
-            .map_err(error)?,
-    )
+        tx.execute(
+            "UPDATE consoles SET archived=1 WHERE id=? AND archived=0",
+            [id],
+        )
+        .map_err(err)?,
+    )?;
+    tx.commit().map_err(err)
+}
+const SESSION_COLUMNS: &str = "id,consoleId,consoleName,startTime,pauseTime,endTime,paidAt,controllers,status,hourlyPrice,controllerPrice,pausedMs,checkoutAt,checkoutPreviousStatus,gameCost,shopCost,totalPrice,legacy";
+fn session_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Session> {
+    Ok(Session {
+        id: r.get(0)?,
+        console_id: r.get(1)?,
+        console_name: r.get(2)?,
+        start_time: r.get(3)?,
+        pause_time: r.get(4)?,
+        end_time: r.get(5)?,
+        paid_at: r.get(6)?,
+        controllers: r.get(7)?,
+        status: r.get(8)?,
+        hourly_price: r.get(9)?,
+        controller_price: r.get(10)?,
+        paused_ms: r.get(11)?,
+        checkout_at: r.get(12)?,
+        checkout_previous_status: r.get(13)?,
+        game_cost: r.get(14)?,
+        shop_cost: r.get(15)?,
+        total_price: r.get(16)?,
+        legacy: r.get(17)?,
+    })
 }
 pub fn get_session(conn: &Connection, id: i64) -> AppResult<Session> {
     conn.query_row(
-        &format!("SELECT {SESSION_COLUMNS} FROM sessions WHERE id = ?"),
+        &format!("SELECT {SESSION_COLUMNS} FROM sessions WHERE id=?"),
         [id],
         session_row,
     )
-    .map_err(error)
+    .map_err(err)
 }
-fn open_session(conn: &Connection, id: i64) -> AppResult<Session> {
-    let session = get_session(conn, id)?;
-    if session.end_time.is_some() || !matches!(session.status.as_str(), "active" | "paused") {
-        return Err("جلسه بسته شده است".into());
+fn editable_session(conn: &Connection, id: i64) -> AppResult<Session> {
+    let s = get_session(conn, id)?;
+    if matches!(s.status.as_str(), "active" | "paused") {
+        Ok(s)
+    } else {
+        Err("جلسه در حال تسویه یا بسته شده است".into())
     }
-    Ok(session)
 }
-pub fn get_sessions_for_console(conn: &Connection, console_id: i64) -> AppResult<Vec<Session>> {
-    let mut stmt = conn.prepare(&format!("SELECT {SESSION_COLUMNS} FROM sessions WHERE consoleId = ? AND endTime IS NULL ORDER BY id")).map_err(error)?;
-    let rows = stmt.query_map([console_id], session_row).map_err(error)?;
-    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
+pub fn start_session_at(conn: &Connection, data: StartInput, now: DateTime<Utc>) -> AppResult<i64> {
+    controllers(data.controllers)?;
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let c = get_console(&tx, data.console_id)?;
+    if c.archived {
+        return Err("کنسول بایگانی شده است".into());
+    }
+    tx.execute("INSERT INTO sessions (consoleId,consoleName,startTime,controllers,status,hourlyPrice,controllerPrice) VALUES (?,?,?,?,'active',?,?)",params![c.id,c.name,iso(now),data.controllers,c.hourly_price,c.controller_price]).map_err(err)?;
+    let id = tx.last_insert_rowid();
+    open_segment(&tx, id, data.controllers, now)?;
+    tx.commit().map_err(err)?;
+    Ok(id)
 }
-fn iso(time: DateTime<Utc>) -> String {
-    time.to_rfc3339_opts(SecondsFormat::Millis, true)
+fn close_segment(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<()> {
+    conn.execute(
+        "UPDATE session_segments SET endTime=? WHERE sessionId=? AND endTime IS NULL",
+        params![iso(now), id],
+    )
+    .map_err(err)?;
+    Ok(())
 }
-fn parse_time(time: &str) -> AppResult<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(time)
-        .map(|t| t.with_timezone(&Utc))
-        .map_err(error)
+fn open_segment(conn: &Connection, id: i64, count: i64, now: DateTime<Utc>) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO session_segments (sessionId,startTime,controllers) VALUES (?,?,?)",
+        params![id, iso(now), count],
+    )
+    .map_err(err)?;
+    Ok(())
 }
-pub fn start_session(conn: &Connection, data: StartInput) -> AppResult<i64> {
-    validate_controllers(data.controllers)?;
-    get_console(conn, data.console_id)?;
-    conn.execute("INSERT INTO sessions (consoleId, startTime, status, controllers, shopItems) VALUES (?, ?, 'active', ?, '[]')",
-        params![data.console_id, iso(Utc::now()), data.controllers]).map_err(error)?;
-    Ok(conn.last_insert_rowid())
-}
-pub fn pause_session(conn: &Connection, id: i64) -> AppResult<()> {
-    changed(conn.execute("UPDATE sessions SET pauseTime = ?, status = 'paused' WHERE id = ? AND status = 'active' AND endTime IS NULL", params![iso(Utc::now()), id]).map_err(error)?)
+pub fn pause_session_at(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<()> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let s = editable_session(&tx, id)?;
+    if s.status != "active" {
+        return Err("جلسه متوقف است".into());
+    }
+    close_segment(&tx, id, now)?;
+    changed(
+        tx.execute(
+            "UPDATE sessions SET status='paused',pauseTime=? WHERE id=?",
+            params![iso(now), id],
+        )
+        .map_err(err)?,
+    )?;
+    tx.commit().map_err(err)
 }
 pub fn resume_session_at(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<()> {
-    let session = open_session(conn, id)?;
-    if session.status != "paused" {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let s = editable_session(&tx, id)?;
+    if s.status != "paused" {
         return Err("جلسه متوقف نیست".into());
     }
-    let paused = parse_time(session.pause_time.as_deref().ok_or("Missing pause time")?)?;
-    let start = parse_time(&session.start_time)?;
-    let new_start = start + (now - paused).max(chrono::Duration::zero());
+    let pause = parse_time(s.pause_time.as_deref().ok_or("زمان توقف ثبت نشده است")?)?;
+    let duration = (now - pause).num_milliseconds().max(0);
     changed(
-        conn.execute(
-            "UPDATE sessions SET startTime = ?, pauseTime = NULL, status = 'active' WHERE id = ?",
-            params![iso(new_start), id],
+        tx.execute(
+            "UPDATE sessions SET status='active',pauseTime=NULL,pausedMs=pausedMs+? WHERE id=?",
+            params![duration, id],
         )
-        .map_err(error)?,
-    )
+        .map_err(err)?,
+    )?;
+    open_segment(&tx, id, s.controllers, now)?;
+    tx.commit().map_err(err)
 }
-pub fn calculate_invoice(
-    session: &Session,
-    console: &Console,
+pub fn update_session_controllers_at(
+    conn: &Connection,
+    data: ControllersInput,
     now: DateTime<Utc>,
-) -> AppResult<Invoice> {
-    let end = if session.status == "paused" {
-        parse_time(session.pause_time.as_deref().ok_or("Missing pause time")?)?
+) -> AppResult<()> {
+    controllers(data.controllers)?;
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let s = editable_session(&tx, data.session_id)?;
+    if s.controllers != data.controllers {
+        if s.status == "active" {
+            close_segment(&tx, s.id, now)?;
+            open_segment(&tx, s.id, data.controllers, now)?;
+        }
+        tx.execute(
+            "UPDATE sessions SET controllers=? WHERE id=?",
+            params![data.controllers, s.id],
+        )
+        .map_err(err)?;
+    }
+    tx.commit().map_err(err)
+}
+pub fn session_items(conn: &Connection, id: i64) -> AppResult<Vec<SessionItem>> {
+    let mut q=conn.prepare("SELECT id,sessionId,productId,name,unitPrice,quantity FROM session_items WHERE sessionId=? ORDER BY id").map_err(err)?;
+    let rows = q
+        .query_map([id], |r| {
+            let unit: i64 = r.get(4)?;
+            let count: i64 = r.get(5)?;
+            Ok(SessionItem {
+                id: r.get(0)?,
+                session_id: r.get(1)?,
+                product_id: r.get(2)?,
+                name: r.get(3)?,
+                unit_price: unit,
+                quantity: count,
+                total: unit * count,
+            })
+        })
+        .map_err(err)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(err)
+}
+pub fn invoice_at(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<Invoice> {
+    let s = get_session(conn, id)?;
+    let mut q=conn.prepare("SELECT startTime,endTime,controllers FROM session_segments WHERE sessionId=? ORDER BY id").map_err(err)?;
+    let segments = q
+        .query_map([id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })
+        .map_err(err)?;
+    let mut played = 0_i64;
+    let mut numerator = 0_i128;
+    for seg in segments {
+        let (start, end, count) = seg.map_err(err)?;
+        let end = end.as_deref().map(parse_time).transpose()?.unwrap_or(now);
+        let duration = (end - parse_time(&start)?).num_milliseconds().max(0);
+        played = played
+            .checked_add(duration)
+            .ok_or("مدت جلسه بیش از حد مجاز است")?;
+        numerator += duration as i128
+            * (s.hourly_price as i128 + (count - 2).max(0) as i128 * s.controller_price as i128);
+    }
+    let items = session_items(conn, id)?;
+    let game = i64::try_from((numerator + 1_800_000) / 3_600_000).map_err(err)?;
+    let shop = items.iter().try_fold(0_i64, |sum, i| {
+        sum.checked_add(i.total).ok_or("مبلغ بیش از حد مجاز است")
+    })?;
+    let frozen = matches!(s.status.as_str(), "checkout" | "ended");
+    let game_cost = if frozen {
+        s.game_cost.ok_or("فاکتور ثبت نشده است")?
     } else {
-        now
+        game
     };
-    let hours = (end - parse_time(&session.start_time)?)
-        .num_milliseconds()
-        .max(0) as f64
-        / 3_600_000.0;
-    let game_cost = hours
-        * (console.hourly_price
-            + (session.controllers - 2).max(0) as f64 * console.controller_price);
-    let items: Vec<ShopItem> = serde_json::from_str(&session.shop_items).map_err(error)?;
-    let shop_cost = items.iter().map(|item| item.price).sum::<f64>();
+    let shop_cost = if frozen {
+        s.shop_cost.ok_or("فاکتور ثبت نشده است")?
+    } else {
+        shop
+    };
+    let total = if frozen {
+        s.total_price.ok_or("فاکتور ثبت نشده است")?
+    } else {
+        game_cost
+            .checked_add(shop_cost)
+            .ok_or("مبلغ بیش از حد مجاز است")?
+    };
+    if total > 9_000_000_000_000_000 {
+        return Err("مبلغ بیش از حد مجاز است".into());
+    }
     Ok(Invoice {
+        session: s,
+        items,
+        played_ms: played,
         game_cost,
         shop_cost,
-        total: game_cost + shop_cost,
+        total,
     })
 }
-pub fn end_session(conn: &Connection, id: i64) -> AppResult<Invoice> {
-    let session = open_session(conn, id)?;
-    let console = get_console(conn, session.console_id)?;
-    let now = Utc::now();
-    let invoice = calculate_invoice(&session, &console, now)?;
-    changed(conn.execute("UPDATE sessions SET endTime = ?, totalPrice = ?, status = 'ended' WHERE id = ? AND endTime IS NULL",
-        params![iso(now), invoice.total, id]).map_err(error)?)?;
+pub fn prepare_checkout_at(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<Invoice> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let s = get_session(&tx, id)?;
+    if s.status == "checkout" {
+        return invoice_at(&tx, id, now);
+    }
+    editable_session(&tx, id)?;
+    let invoice = invoice_at(&tx, id, now)?;
+    if s.status == "active" {
+        close_segment(&tx, id, now)?;
+    }
+    tx.execute("UPDATE sessions SET status='checkout',checkoutAt=?,checkoutPreviousStatus=?,gameCost=?,shopCost=?,totalPrice=? WHERE id=?",params![iso(now),s.status,invoice.game_cost,invoice.shop_cost,invoice.total,id]).map_err(err)?;
+    let result = invoice_at(&tx, id, now)?;
+    tx.commit().map_err(err)?;
+    Ok(result)
+}
+pub fn cancel_checkout_at(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<()> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let s = get_session(&tx, id)?;
+    if s.status != "checkout" {
+        return Err("جلسه در حال تسویه نیست".into());
+    }
+    let previous = s
+        .checkout_previous_status
+        .as_deref()
+        .ok_or("وضعیت قبلی ثبت نشده است")?;
+    let excluded = if previous == "active" {
+        open_segment(&tx, id, s.controllers, now)?;
+        (now - parse_time(s.checkout_at.as_deref().ok_or("زمان تسویه ثبت نشده است")?)?)
+            .num_milliseconds()
+            .max(0)
+    } else {
+        0
+    };
+    tx.execute("UPDATE sessions SET status=?,checkoutAt=NULL,checkoutPreviousStatus=NULL,gameCost=NULL,shopCost=NULL,totalPrice=NULL,pausedMs=pausedMs+? WHERE id=?",params![previous,excluded,id]).map_err(err)?;
+    tx.commit().map_err(err)
+}
+pub fn confirm_checkout_at(conn: &Connection, id: i64, now: DateTime<Utc>) -> AppResult<Invoice> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let s = get_session(&tx, id)?;
+    if s.status != "checkout" {
+        return Err("ابتدا فاکتور جلسه را باز کنید".into());
+    }
+    changed(tx.execute("UPDATE sessions SET status='ended',endTime=checkoutAt,paidAt=? WHERE id=? AND status='checkout'",params![iso(now),id]).map_err(err)?)?;
+    let invoice = invoice_at(&tx, id, now)?;
+    tx.commit().map_err(err)?;
     Ok(invoice)
 }
-pub fn update_session_controllers(conn: &Connection, data: ControllersInput) -> AppResult<()> {
-    validate_controllers(data.controllers)?;
-    open_session(conn, data.session_id)?;
-    changed(
-        conn.execute(
-            "UPDATE sessions SET controllers = ? WHERE id = ?",
-            params![data.controllers, data.session_id],
-        )
-        .map_err(error)?,
-    )
-}
-pub fn save_shop_item(conn: &Connection, data: ShopInput, edit: bool) -> AppResult<()> {
-    validate_name(&data.name)?;
-    validate_price(data.price)?;
-    let session = open_session(conn, data.session_id)?;
-    let mut items: Vec<ShopItem> = serde_json::from_str(&session.shop_items).map_err(error)?;
-    let item = ShopItem {
-        name: data.name.trim().into(),
-        price: data.price,
-    };
-    if edit {
-        let slot = items
-            .get_mut(data.item_index.ok_or("Missing item index")?)
-            .ok_or("Item not found")?;
-        *slot = item;
-    } else {
-        items.push(item);
+pub fn dashboard(conn: &Connection) -> AppResult<Vec<ConsoleCard>> {
+    let now = Utc::now();
+    let mut cards = Vec::new();
+    for console in get_consoles(conn, true)? {
+        let mut q = conn
+            .prepare("SELECT id FROM sessions WHERE consoleId=? AND endTime IS NULL ORDER BY id")
+            .map_err(err)?;
+        let ids = q
+            .query_map([console.id], |r| r.get::<_, i64>(0))
+            .map_err(err)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(err)?;
+        if console.archived && ids.is_empty() {
+            continue;
+        }
+        let sessions = ids
+            .into_iter()
+            .map(|id| invoice_at(conn, id, now))
+            .collect::<AppResult<Vec<_>>>()?;
+        cards.push(ConsoleCard { console, sessions });
     }
-    write_shop_items(conn, data.session_id, &items)
-}
-fn write_shop_items(conn: &Connection, id: i64, items: &[ShopItem]) -> AppResult<()> {
-    let json = serde_json::to_string(items).map_err(error)?;
-    changed(
-        conn.execute(
-            "UPDATE sessions SET shopItems = ? WHERE id = ?",
-            params![json, id],
-        )
-        .map_err(error)?,
-    )
-}
-pub fn delete_shop_item(conn: &Connection, data: DeleteItemInput) -> AppResult<()> {
-    let session = open_session(conn, data.session_id)?;
-    let mut items: Vec<ShopItem> = serde_json::from_str(&session.shop_items).map_err(error)?;
-    if data.item_index >= items.len() {
-        return Err("Item not found".into());
-    }
-    items.remove(data.item_index);
-    write_shop_items(conn, data.session_id, &items)
+    Ok(cards)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn fixture() -> Connection {
-        let conn = Connection::open_in_memory().unwrap();
-        init(&conn).unwrap();
-        add_console(
-            &conn,
-            ConsoleInput {
-                id: None,
-                name: "PS5".into(),
-                hourly_price: 100.0,
-                controller_price: 20.0,
-            },
+fn product_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Product> {
+    Ok(Product {
+        id: r.get(0)?,
+        name: r.get(1)?,
+        price: r.get(2)?,
+        stock: r.get(3)?,
+        archived: r.get(4)?,
+    })
+}
+pub fn get_products(conn: &Connection) -> AppResult<Vec<Product>> {
+    let mut q = conn
+        .prepare(
+            "SELECT id,name,price,stock,archived FROM products WHERE archived=0 ORDER BY name,id",
         )
-        .unwrap();
-        conn
+        .map_err(err)?;
+    let rows = q.query_map([], product_row).map_err(err)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(err)
+}
+pub fn save_product(conn: &Connection, data: ProductInput) -> AppResult<i64> {
+    name(&data.name)?;
+    price(data.price)?;
+    if !(0..=1_000_000).contains(&data.stock) {
+        return Err("موجودی نامعتبر است".into());
     }
-    fn session(conn: &Connection, controllers: i64) -> i64 {
-        let id = start_session(
-            conn,
-            StartInput {
-                console_id: 1,
-                controllers,
-            },
-        )
-        .unwrap();
+    if let Some(id) = data.id {
+        changed(
+            conn.execute(
+                "UPDATE products SET name=?,price=?,stock=? WHERE id=? AND archived=0",
+                params![data.name.trim(), data.price, data.stock, id],
+            )
+            .map_err(err)?,
+        )?;
+        Ok(id)
+    } else {
         conn.execute(
-            "UPDATE sessions SET startTime = '2026-10-08T10:00:00.000Z' WHERE id = ?",
+            "INSERT INTO products (name,price,stock) VALUES (?,?,?)",
+            params![data.name.trim(), data.price, data.stock],
+        )
+        .map_err(err)?;
+        Ok(conn.last_insert_rowid())
+    }
+}
+pub fn archive_product(conn: &Connection, id: i64) -> AppResult<()> {
+    changed(
+        conn.execute(
+            "UPDATE products SET archived=1 WHERE id=? AND archived=0",
             [id],
         )
-        .unwrap();
-        id
+        .map_err(err)?,
+    )
+}
+pub fn add_product_to_session(conn: &Connection, data: AddProductInput) -> AppResult<()> {
+    quantity(data.quantity)?;
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    editable_session(&tx, data.session_id)?;
+    let p = tx
+        .query_row(
+            "SELECT id,name,price,stock,archived FROM products WHERE id=? AND archived=0",
+            [data.product_id],
+            product_row,
+        )
+        .map_err(err)?;
+    if p.stock < data.quantity {
+        return Err("موجودی محصول کافی نیست".into());
     }
-    #[test]
-    fn billing_includes_extra_controllers_and_shop_but_excludes_pause() {
-        let conn = fixture();
-        let id = session(&conn, 4);
-        save_shop_item(
-            &conn,
-            ShopInput {
-                session_id: id,
-                name: "Snack".into(),
-                price: 50.0,
-                item_index: None,
-            },
-            false,
+    tx.execute(
+        "UPDATE products SET stock=stock-? WHERE id=?",
+        params![data.quantity, p.id],
+    )
+    .map_err(err)?;
+    tx.execute("INSERT INTO session_items (sessionId,productId,name,unitPrice,quantity) VALUES (?,?,?,?,?)",params![data.session_id,p.id,p.name,p.price,data.quantity]).map_err(err)?;
+    tx.commit().map_err(err)
+}
+fn item(conn: &Connection, id: i64) -> AppResult<(i64, Option<i64>, i64)> {
+    conn.query_row(
+        "SELECT sessionId,productId,quantity FROM session_items WHERE id=?",
+        [id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+    )
+    .map_err(err)
+}
+pub fn update_item_quantity(conn: &Connection, data: ItemQuantityInput) -> AppResult<()> {
+    quantity(data.quantity)?;
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let (session, product, old) = item(&tx, data.item_id)?;
+    editable_session(&tx, session)?;
+    if let Some(product) = product {
+        let delta = data.quantity - old;
+        let stock: i64 = tx
+            .query_row("SELECT stock FROM products WHERE id=?", [product], |r| {
+                r.get(0)
+            })
+            .map_err(err)?;
+        if delta > stock {
+            return Err("موجودی محصول کافی نیست".into());
+        }
+        tx.execute(
+            "UPDATE products SET stock=stock-? WHERE id=?",
+            params![delta, product],
         )
-        .unwrap();
-        conn.execute("UPDATE sessions SET status = 'paused', pauseTime = '2026-10-08T11:30:00.000Z' WHERE id = ?", [id]).unwrap();
-        let invoice = calculate_invoice(
-            &get_session(&conn, id).unwrap(),
-            &get_console(&conn, 1).unwrap(),
-            parse_time("2026-10-08T13:00:00Z").unwrap(),
-        )
-        .unwrap();
-        assert_eq!(invoice.game_cost, 210.0);
-        assert_eq!(invoice.shop_cost, 50.0);
-        assert_eq!(invoice.total, 260.0);
+        .map_err(err)?;
     }
-    #[test]
-    fn resume_preserves_played_duration_and_repeat_resume_fails() {
-        let conn = fixture();
-        let id = session(&conn, 2);
-        conn.execute("UPDATE sessions SET status = 'paused', pauseTime = '2026-10-08T11:00:00.000Z' WHERE id = ?", [id]).unwrap();
-        let now = parse_time("2026-10-08T12:00:00Z").unwrap();
-        resume_session_at(&conn, id, now).unwrap();
-        let s = get_session(&conn, id).unwrap();
-        assert_eq!(s.start_time, "2026-10-08T11:00:00.000Z");
-        assert!(s.pause_time.is_none());
-        assert_eq!(
-            calculate_invoice(&s, &get_console(&conn, 1).unwrap(), now)
-                .unwrap()
-                .total,
-            100.0
-        );
-        assert!(resume_session_at(&conn, id, now).is_err());
+    tx.execute(
+        "UPDATE session_items SET quantity=? WHERE id=?",
+        params![data.quantity, data.item_id],
+    )
+    .map_err(err)?;
+    tx.commit().map_err(err)
+}
+pub fn delete_session_item(conn: &Connection, id: i64) -> AppResult<()> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    let (session, product, count) = item(&tx, id)?;
+    editable_session(&tx, session)?;
+    if let Some(product) = product {
+        tx.execute(
+            "UPDATE products SET stock=stock+? WHERE id=?",
+            params![count, product],
+        )
+        .map_err(err)?;
     }
-    #[test]
-    fn checkout_is_persistent_and_cannot_be_repeated() {
-        let conn = fixture();
-        let id = session(&conn, 1);
-        assert!(delete_console(&conn, 1).is_err());
-        pause_session(&conn, id).unwrap();
-        assert!(pause_session(&conn, id).is_err());
-        let invoice = end_session(&conn, id).unwrap();
-        let saved = get_session(&conn, id).unwrap();
-        assert_eq!(saved.total_price, Some(invoice.total));
-        assert_eq!(saved.status, "ended");
-        assert!(get_sessions_for_console(&conn, 1).unwrap().is_empty());
-        assert!(end_session(&conn, id).is_err());
-        assert!(update_session_controllers(
-            &conn,
-            ControllersInput {
-                session_id: id,
-                controllers: 2
-            }
-        )
-        .is_err());
-        delete_console(&conn, 1).unwrap();
-    }
-    #[test]
-    fn shop_edits_and_validation() {
-        let conn = fixture();
-        assert!(start_session(
-            &conn,
-            StartInput {
-                console_id: 1,
-                controllers: 5
-            }
-        )
-        .is_err());
-        assert!(start_session(
-            &conn,
-            StartInput {
-                console_id: 99,
-                controllers: 1
-            }
-        )
-        .is_err());
-        let id = session(&conn, 1);
-        assert!(save_shop_item(
-            &conn,
-            ShopInput {
-                session_id: id,
-                name: "Snack".into(),
-                price: -1.0,
-                item_index: None
-            },
-            false
-        )
-        .is_err());
-        save_shop_item(
-            &conn,
-            ShopInput {
-                session_id: id,
-                name: "Snack".into(),
-                price: 50.0,
-                item_index: None,
-            },
-            false,
-        )
-        .unwrap();
-        save_shop_item(
-            &conn,
-            ShopInput {
-                session_id: id,
-                name: "Drink".into(),
-                price: 30.0,
-                item_index: Some(0),
-            },
-            true,
-        )
-        .unwrap();
-        let items: Vec<ShopItem> =
-            serde_json::from_str(&get_session(&conn, id).unwrap().shop_items).unwrap();
-        assert_eq!(items[0].name, "Drink");
-        assert_eq!(items[0].price, 30.0);
-        assert!(delete_shop_item(
-            &conn,
-            DeleteItemInput {
-                session_id: id,
-                item_index: 4
-            }
-        )
-        .is_err());
-        delete_shop_item(
-            &conn,
-            DeleteItemInput {
-                session_id: id,
-                item_index: 0,
-            },
-        )
-        .unwrap();
-        assert_eq!(get_session(&conn, id).unwrap().shop_items, "[]");
-    }
-    #[test]
-    fn legacy_migration_copies_data_and_never_overwrites_existing_database() {
-        let dir = std::env::temp_dir().join(format!(
-            "gamagement-test-{}-{}",
-            std::process::id(),
-            Utc::now().timestamp_nanos_opt().unwrap()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let old = dir.join("electron.db");
-        let new = dir.join("tauri.db");
-        let original = Connection::open(&old).unwrap();
-        original.pragma_update(None, "journal_mode", "WAL").unwrap();
-        init(&original).unwrap();
-        add_console(
-            &original,
-            ConsoleInput {
-                id: None,
-                name: "Legacy".into(),
-                hourly_price: 100.0,
-                controller_price: 20.0,
-            },
-        )
-        .unwrap();
-        let migrated = open_database(&new, Some(&old)).unwrap();
-        assert_eq!(get_consoles(&migrated).unwrap()[0].name, "Legacy");
-        migrated
-            .execute("UPDATE consoles SET name = 'Tauri'", [])
-            .unwrap();
-        drop(migrated);
-        let reopened = open_database(&new, Some(&old)).unwrap();
-        assert_eq!(get_consoles(&reopened).unwrap()[0].name, "Tauri");
-        assert_eq!(get_consoles(&original).unwrap()[0].name, "Legacy");
-        drop(reopened);
-        drop(original);
-        std::fs::remove_dir_all(dir).unwrap();
-    }
+    tx.execute("DELETE FROM session_items WHERE id=?", [id])
+        .map_err(err)?;
+    tx.commit().map_err(err)
 }

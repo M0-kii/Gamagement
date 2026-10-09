@@ -1,157 +1,105 @@
 <!doctype html>
-<html dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Gamagement | مدیریت گیم‌سنتر</title>
-    <link rel="icon" type="image/x-icon" href="/assets/icon.ico" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <header>
-      <div class="header-content">
-        <div class="logo-area">
-          <!-- <span class="logo-icon">🎮</span> -->
-          <h1>AsiaGame</h1>
-        </div>
-        <button
-          class="btn-primary"
-          data-action="showAddConsoleModal" data-args="[]"
-          id="addConsoleBtn"
-        >
-          <span class="plus-icon">+</span> افزودن کنسول
-        </button>
-      </div>
-    </header>
-
-    <main class="container">
-      <section id="consoles">
-        <div class="section-header">
-          <h2>مدیریت کنسول‌ها</h2>
-          <div class="badge">سیستم فعال</div>
-        </div>
-        <div id="consoleList" class="grid"></div>
-      </section>
-    </main>
-
-    <!-- Modals (Structures kept identical to preserve logic) -->
-    <div id="consoleModal" class="modal">
-      <div class="modal-content">
-        <h3 id="consoleModalTitle">افزودن کنسول</h3>
-        <div class="form-group">
-          <label>نام کنسول</label>
-          <input id="consoleName" placeholder="مثال: PS5 - VIP" />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>قیمت ساعتی (تومان)</label>
-            <input id="hourlyPrice" type="number" placeholder="مثال: 75000" />
-          </div>
-          <div class="form-group">
-            <label>کنترلر اضافه (ساعتی)</label>
-            <input
-              id="controllerPrice"
-              type="number"
-              placeholder="مثال: 15000"
-            />
-          </div>
-        </div>
-        <input type="hidden" id="consoleEditId" />
-        <div class="modal-buttons">
-          <button class="btn-secondary" data-action="hideConsoleModal" data-args="[]">
-            انصراف
-          </button>
-          <button
-            class="btn-success"
-            id="consoleSaveBtn"
-            data-action="saveConsole" data-args="[]"
-          >
-            ذخیره
-          </button>
-        </div>
-      </div>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="مدیریت کنسول، جلسه‌های بازی، فروشگاه و گزارش گیم‌سنتر" />
+  <title>Gamagement | مدیریت گیم‌سنتر</title>
+  <link rel="icon" type="image/x-icon" href="/assets/icon.ico" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">رفتن به محتوا</a>
+  <header>
+    <div class="header-content">
+      <div class="brand"><h1>AsiaGame</h1><span>مدیریت گیم‌سنتر</span></div>
+      <nav aria-label="بخش‌های برنامه">
+        <button data-action="switchView" data-args='["dashboard"]' aria-current="page" id="nav-dashboard">کنسول‌ها</button>
+        <button data-action="switchView" data-args='["products"]' id="nav-products">فروشگاه</button>
+        <button data-action="switchView" data-args='["history"]' id="nav-history">سوابق و گزارش</button>
+      </nav>
     </div>
-
-    <div id="sessionItemModal" class="modal">
-      <div class="modal-content">
-        <h3>افزودن خوراکی / کالا</h3>
-        <div class="form-group">
-          <label>نام آیتم</label>
-          <input id="sessionItemName" placeholder="مثال: چیپس یا نوشابه" />
-        </div>
-        <div class="form-group">
-          <label>قیمت (تومان)</label>
-          <input id="sessionItemPrice" type="number" />
-        </div>
-        <input type="hidden" id="sessionIdForItem" />
-        <div class="modal-buttons">
-          <button class="btn-secondary" data-action="hideSessionItemModal" data-args="[]">
-            انصراف
-          </button>
-          <button class="btn-success" data-action="saveSessionItem" data-args="[]">
-            ثبت آیتم
-          </button>
-        </div>
+  </header>
+  <main id="main" class="container" tabindex="-1">
+    <div id="notification" class="notice" role="status" hidden></div>
+    <section id="view-dashboard" aria-labelledby="dashboard-title">
+      <div class="section-header"><div><h2 id="dashboard-title">کنسول‌ها</h2><p>وضعیت میزها و جلسه‌های باز</p></div><button class="btn-primary" data-action="showConsole">افزودن کنسول</button></div>
+      <div id="dashboardSummary" class="stats"></div>
+      <div class="toolbar">
+        <label for="consoleFilter">نمایش</label>
+        <select id="consoleFilter"><option value="all">همه کنسول‌ها</option><option value="available">آزاد</option><option value="active">در حال بازی</option><option value="paused">متوقف</option><option value="checkout">در حال تسویه</option></select>
       </div>
-    </div>
-
-    <div id="sessionItemEditModal" class="modal">
-      <div class="modal-content">
-        <h3>ویرایش آیتم</h3>
-        <div class="form-group">
-          <label>نام آیتم</label>
-          <input id="sessionItemEditName" />
-        </div>
-        <div class="form-group">
-          <label>قیمت (تومان)</label>
-          <input id="sessionItemEditPrice" type="number" />
-        </div>
-        <input type="hidden" id="editItemSessionId" />
-        <input type="hidden" id="editItemIndex" />
-        <div class="modal-buttons">
-          <button class="btn-secondary" data-action="hideSessionItemEditModal" data-args="[]">
-            انصراف
-          </button>
-          <button class="btn-success" data-action="saveSessionItemEdit" data-args="[]">
-            بروزرسانی آیتم
-          </button>
-        </div>
+      <div id="consoleList" class="grid"><p class="empty">در حال دریافت کنسول‌ها…</p></div>
+    </section>
+    <section id="view-products" hidden aria-labelledby="products-title">
+      <div class="section-header"><div><h2 id="products-title">فروشگاه</h2><p>قیمت محصولات و موجودی قابل فروش</p></div><button class="btn-primary" data-action="showProduct">افزودن محصول</button></div>
+      <div class="toolbar"><label for="productSearch">جست‌وجوی محصول</label><input id="productSearch" type="search" placeholder="نام محصول" /></div>
+      <div class="table-wrap"><table><thead><tr><th scope="col">محصول</th><th scope="col">قیمت واحد</th><th scope="col">موجودی</th><th scope="col">عملیات</th></tr></thead><tbody id="productList"></tbody></table></div>
+    </section>
+    <section id="view-history" hidden aria-labelledby="history-title">
+      <div class="section-header"><div><h2 id="history-title">سوابق و گزارش</h2><p>فاکتورهای تسویه‌شده؛ درآمد بر اساس زمان پرداخت در تهران</p></div><button class="btn-secondary" data-action="exportHistory">خروجی CSV</button></div>
+      <form id="historyFilter" class="filter-bar" data-submit="filterHistory">
+        <label>از تاریخ (شمسی)<input id="historyFrom" placeholder="۱۴۰۵/۰۷/۰۱" inputmode="numeric" autocomplete="off" /></label>
+        <label>تا تاریخ (شمسی)<input id="historyTo" placeholder="۱۴۰۵/۰۷/۱۷" inputmode="numeric" autocomplete="off" /></label>
+        <label>کنسول<select id="historyConsole"><option value="">همه کنسول‌ها</option></select></label>
+        <label>جست‌وجو<input id="historySearch" type="search" placeholder="نام کنسول یا شماره جلسه" /></label>
+        <button class="btn-primary" type="submit">نمایش گزارش</button>
+      </form>
+      <div id="historySummary" class="stats"></div>
+      <div class="table-wrap"><table><thead><tr><th scope="col">جلسه</th><th scope="col">کنسول</th><th scope="col">زمان پرداخت</th><th scope="col">مدت بازی</th><th scope="col">بازی</th><th scope="col">فروشگاه</th><th scope="col">جمع</th><th scope="col">فاکتور</th></tr></thead><tbody id="historyList"></tbody></table></div>
+      <div class="pagination"><button id="previousPage" class="btn-secondary" data-action="changePage" data-args="[-1]">صفحه قبل</button><span id="pageInfo"></span><button id="nextPage" class="btn-secondary" data-action="changePage" data-args="[1]">صفحه بعد</button></div>
+      <div class="report-grid">
+        <section><h3>درآمد روزانه</h3><div class="table-wrap"><table><thead><tr><th scope="col">روز</th><th scope="col">جلسه</th><th scope="col">بازی</th><th scope="col">فروشگاه</th><th scope="col">جمع</th></tr></thead><tbody id="dailyReport"></tbody></table></div></section>
+        <section><h3>عملکرد کنسول‌ها</h3><div class="table-wrap"><table><thead><tr><th scope="col">کنسول</th><th scope="col">جلسه</th><th scope="col">مدت استفاده</th><th scope="col">درآمد</th></tr></thead><tbody id="consoleReport"></tbody></table></div></section>
       </div>
-    </div>
-
-    <div id="endSessionModal" class="modal">
-      <div class="modal-content end-modal">
-        <div class="modal-header">
-          <h3>فاکتور نهایی جلسه</h3>
-        </div>
-        <div class="invoice-details">
-          <div class="invoice-item">
-            <span>هزینه بازی:</span>
-            <span id="gamePrice" class="val"></span>
-          </div>
-          <div class="invoice-item">
-            <span>هزینه فروشگاه:</span>
-            <span id="shopPrice" class="val"></span>
-          </div>
-          <div class="invoice-total">
-            <span>مبلغ قابل پرداخت:</span>
-            <span id="totalPrice" class="total-val"></span>
-          </div>
-        </div>
-        <div class="modal-buttons">
-          <button class="btn-danger full-width" data-action="confirmEndSession" data-args="[]">
-            تسویه و بستن میز
-          </button>
-          <button
-            class="btn-secondary full-width"
-            data-action="hideEndSessionModal" data-args="[]"
-          >
-            بازگشت به بازی
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <script src="api.js"></script>
-    <script src="renderer.js"></script>
-  </body>
+    </section>
+  </main>
+  <dialog id="consoleDialog" aria-labelledby="consoleDialogTitle">
+    <form data-submit="saveConsole">
+      <h3 id="consoleDialogTitle">افزودن کنسول</h3><p class="hint">تغییر تعرفه فقط برای جلسه‌های جدید اعمال می‌شود.</p>
+      <input id="consoleEditId" type="hidden" />
+      <label for="consoleName">نام کنسول</label><input id="consoleName" required maxlength="100" placeholder="مثال: PS5 - VIP" />
+      <label for="hourlyPrice">قیمت ساعتی (تومان)</label><input id="hourlyPrice" type="number" required min="0" max="1000000000" step="1" />
+      <label for="controllerPrice">هر دسته اضافه، ساعتی (دو دسته اول رایگان)</label><input id="controllerPrice" type="number" required min="0" max="1000000000" step="1" />
+      <p class="form-error" role="alert"></p>
+      <div class="modal-buttons"><button type="submit" class="btn-primary">ذخیره</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["consoleDialog"]'>انصراف</button></div>
+    </form>
+  </dialog>
+  <dialog id="productDialog" aria-labelledby="productDialogTitle">
+    <form data-submit="saveProduct">
+      <h3 id="productDialogTitle">افزودن محصول</h3><p class="hint">قیمت فروش‌های قبلی با ویرایش محصول تغییر نمی‌کند.</p>
+      <input id="productEditId" type="hidden" />
+      <label for="productName">نام محصول</label><input id="productName" required maxlength="100" />
+      <label for="productPrice">قیمت واحد (تومان)</label><input id="productPrice" type="number" min="0" max="1000000000" step="1" required />
+      <label for="productStock">موجودی فعلی</label><input id="productStock" type="number" min="0" max="1000000" step="1" required />
+      <p class="form-error" role="alert"></p>
+      <div class="modal-buttons"><button type="submit" class="btn-primary">ذخیره</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["productDialog"]'>انصراف</button></div>
+    </form>
+  </dialog>
+  <dialog id="saleDialog" aria-labelledby="saleTitle">
+    <form data-submit="saveSale">
+      <h3 id="saleTitle">افزودن محصول به جلسه</h3><input id="saleSessionId" type="hidden" />
+      <label for="saleProduct">محصول</label><select id="saleProduct" required></select>
+      <label for="saleQuantity">تعداد</label><input id="saleQuantity" type="number" min="1" max="100000" step="1" value="1" required />
+      <p id="salePreview" class="hint"></p><p class="form-error" role="alert"></p>
+      <div class="modal-buttons"><button type="submit" class="btn-primary" id="saleSave">افزودن</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["saleDialog"]'>انصراف</button></div>
+    </form>
+  </dialog>
+  <dialog id="quantityDialog" aria-labelledby="quantityTitle">
+    <form data-submit="saveQuantity">
+      <h3 id="quantityTitle">ویرایش تعداد</h3><p id="quantityName"></p><input id="quantityItemId" type="hidden" />
+      <label for="itemQuantity">تعداد</label><input id="itemQuantity" type="number" min="1" max="100000" step="1" required />
+      <p class="hint">قیمت واحد هنگام فروش ثبت شده و ثابت می‌ماند.</p><p class="form-error" role="alert"></p>
+      <div class="modal-buttons"><button type="submit" class="btn-primary">ذخیره</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["quantityDialog"]'>انصراف</button></div>
+    </form>
+  </dialog>
+  <dialog id="receiptDialog" class="receipt-dialog" aria-labelledby="receiptTitle">
+    <article id="receiptContent"></article>
+    <p class="form-error" role="alert"></p>
+    <div id="receiptButtons" class="modal-buttons"></div>
+  </dialog>
+  <script src="api.js"></script>
+  <script src="format.js"></script>
+  <script src="renderer.js"></script>
+</body>
 </html>
