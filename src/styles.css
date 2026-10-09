@@ -1168,3 +1168,112 @@ body, header, .card, .stats, dialog, input, select, .table-wrap {
     transition: none !important;
   }
 }
+
+:root {
+  --motion-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+button {
+  transition: transform 130ms var(--motion-out), background-color 150ms ease,
+    border-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
+}
+button:active:not(:disabled) {
+  transform: scale(.97);
+}
+.selector-btn:active:not(:disabled) {
+  transform: scale(.9);
+}
+nav button svg, .theme-button svg {
+  transition: transform 180ms var(--motion-out);
+}
+nav button[aria-current="page"] svg {
+  transform: scale(1.06);
+}
+[data-theme="light"] .theme-button svg {
+  transform: rotate(-20deg);
+}
+.counter span {
+  display: inline-block;
+}
+.card {
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+input, select {
+  transition: background-color 180ms ease, color 180ms ease, border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+input:focus, select:focus {
+  box-shadow: 0 0 0 3px #007aff22;
+}
+@media (hover:hover) and (pointer:fine) {
+  .card:hover {
+    box-shadow: 0 4px 16px #0000000b;
+  }
+  [data-theme="dark"] .card:hover {
+    box-shadow: 0 4px 18px #0003;
+  }
+  .theme-button:hover svg {
+    transform: rotate(-12deg);
+  }
+}
+@supports (transition-behavior:allow-discrete) {
+  dialog {
+    opacity: 0;
+    transform: scale(.97);
+    transition: opacity 120ms var(--motion-out), transform 120ms var(--motion-out),
+      display 120ms allow-discrete, overlay 120ms allow-discrete;
+  }
+  dialog[open] {
+    opacity: 1;
+    transform: scale(1);
+    transition-duration: 200ms;
+  }
+  dialog::backdrop {
+    opacity: 0;
+    transition: opacity 120ms ease, display 120ms allow-discrete,
+      overlay 120ms allow-discrete;
+  }
+  dialog[open]::backdrop {
+    opacity: 1;
+    transition-duration: 200ms;
+  }
+  @starting-style {
+    dialog[open] {
+      opacity: 0;
+      transform: scale(.97);
+    }
+    dialog[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}
+html[data-input="keyboard"] button,
+html[data-input="keyboard"] dialog,
+html[data-input="keyboard"] dialog::backdrop,
+html[data-input="keyboard"] nav svg,
+html[data-input="keyboard"] .theme-button svg {
+  transition: none;
+}
+html[data-input="keyboard"] button:active {
+  transform: none;
+}
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  button:active:not(:disabled), .selector-btn:active:not(:disabled),
+  nav button svg, .theme-button svg, dialog {
+    transform: none !important;
+  }
+}
+@media print {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  #receiptDialog[open] {
+    opacity: 1;
+    transform: none;
+  }
+}

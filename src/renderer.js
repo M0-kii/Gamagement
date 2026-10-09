@@ -7,6 +7,23 @@ const $ = (id) => document.getElementById(id);
 const escape = fmt.escape;
 const statusNames = { active: "در حال بازی", paused: "متوقف", checkout: "در حال تسویه", available: "آزاد" };
 
+const activeMotion = new WeakMap();
+function animateUI(element, frames, duration = 180, delay = 0) {
+  if (!element?.animate || document.documentElement.dataset.input === "keyboard"
+    || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  activeMotion.get(element)?.cancel();
+  const animation = element.animate(frames, {
+    duration, delay, fill: "backwards", easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+  });
+  activeMotion.set(element, animation);
+  animation.finished.then(() => {
+    if (activeMotion.get(element) === animation) activeMotion.delete(element);
+  }).catch(() => {});
+}
+function cardMotionKey(card, selected) {
+  return JSON.stringify([card.console, selected, card.sessions.map((i) =>
+    [i.session.id, i.session.status, i.session.controllers, i.items])]);
+}
 function button(action, text, args = [], style = "btn-secondary", disabled = false) {
   return `<button type="button" class="${style}" data-action="${action}" data-args="${escape(JSON.stringify(args))}" ${disabled ? "disabled" : ""}>${text}</button>`;
 }
@@ -14,6 +31,10 @@ function notify(message, error = false) {
   $("notification").textContent = message;
   $("notification").classList.toggle("error", error);
   $("notification").hidden = false;
+  animateUI($("notification"), [
+    { opacity: 0, transform: "translateY(-4px)" },
+    { opacity: 1, transform: "translateY(0)" },
+  ]);
 }
 function showDialog(id) {
   const dialog = $(id);
@@ -41,6 +62,8 @@ async function reloadDashboard() {
   renderDashboard();
 }
 function renderDashboard() {
+  const previous = new Map(Array.from($("consoleList").querySelectorAll?.(".card") || [],
+    (card) => [card.dataset.consoleId, card.dataset.motionKey]));
   const counts = { available: 0, active: 0, paused: 0, checkout: 0 };
   for (const card of state.cards) counts[cardStatus(card)]++;
   $("dashboardSummary").innerHTML = Object.entries(counts).map(([key, count]) =>
@@ -51,7 +74,7 @@ function renderDashboard() {
     const c = card.console;
     const status = cardStatus(card);
     const selected = state.selectedControllers.get(c.id) || 2;
-    return `<article class="card ${status}">
+    return `<article class="card ${status}" data-console-id="${c.id}" data-motion-key="${escape(cardMotionKey(card, selected))}">
       <div class="card-top"><span class="status ${status}">${statusNames[status]}</span><div class="card-actions">
         ${c.archived ? '<span class="muted">بایگانی</span>' : button("showConsole", "ویرایش", [c.id], "text-button")}
         ${!c.archived && !card.sessions.length ? button("archiveConsole", "بایگانی", [c.id], "text-button danger-text") : ""}
@@ -69,6 +92,22 @@ function renderDashboard() {
       `}
     </article>`;
   }).join("") || `<div class="empty">${state.cards.length ? "کنسولی با این وضعیت وجود ندارد." : "هنوز کنسولی ثبت نشده است. اولین کنسول را اضافه کنید."}</div>`;
+  let entered = 0;
+  for (const card of $("consoleList").querySelectorAll?.(".card") || []) {
+    const oldKey = previous.get(card.dataset.consoleId);
+    if (oldKey === card.dataset.motionKey) continue;
+    if (oldKey === undefined) {
+      animateUI(card, [
+        { opacity: 0, transform: "translateY(6px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ], 200, Math.min(entered++ * 25, 75));
+    } else {
+      animateUI(card, [{ opacity: .65 }, { opacity: 1 }], 160);
+      animateUI(card.querySelector(".counter span"), [
+        { transform: "scale(1.12)", opacity: .6 }, { transform: "scale(1)", opacity: 1 },
+      ], 160);
+    }
+  }
 }
 function renderSession(invoice) {
   const s = invoice.session;
@@ -193,6 +232,7 @@ function renderReceipt() {
 async function confirmCheckout() {
   state.invoice = await window.appAPI.confirmCheckout(state.invoice.session.id);
   renderReceipt();
+  animateUI($("receiptContent"), [{ opacity: .5 }, { opacity: 1 }], 180);
   await reloadDashboard();
   notify("پرداخت ثبت شد.");
 }
@@ -244,12 +284,17 @@ async function exportHistory() {
   if (await window.appAPI.exportHistory(readFilter())) notify("فایل گزارش ذخیره شد.");
 }
 async function switchView(view) {
+  const changed = state.view !== view;
   state.view = view;
   for (const name of ["dashboard", "history"]) {
     $("view-" + name).hidden = name !== view;
     $("nav-" + name).setAttribute("aria-current", name === view ? "page" : "false");
   }
   $("notification").hidden = true;
+  if (changed) animateUI($("view-" + view), [
+    { opacity: 0, transform: "translateY(5px)" },
+    { opacity: 1, transform: "translateY(0)" },
+  ], 180);
   if (view === "dashboard") await reloadDashboard();
   if (view === "history") {
     state.consoles = await window.appAPI.getConsoles(true);
@@ -312,6 +357,9 @@ async function runAction(action, args = [], control = null, form = null) {
     if (control) control.disabled = false;
   }
 }
+document.addEventListener("pointerdown", () => {
+  document.documentElement.dataset.input = "pointer";
+});
 document.addEventListener("click", (event) => {
   const control = event.target.closest("button[data-action]");
   if (control && !control.disabled) runAction(control.dataset.action, JSON.parse(control.dataset.args || "[]"), control);
@@ -323,6 +371,7 @@ document.addEventListener("submit", (event) => {
   runAction(form.dataset.submit, [], form.querySelector('button[type="submit"]'), form);
 });
 document.addEventListener("keydown", (event) => {
+  document.documentElement.dataset.input = "keyboard";
   if (event.key === "Escape" && state.busy && document.querySelector("dialog[open]")) event.preventDefault();
 });
 window.addEventListener("DOMContentLoaded", async () => {
