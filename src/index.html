@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Gamagement | مدیریت گیم‌سنتر</title>
+    <link rel="icon" type="image/x-icon" href="/assets/icon.ico" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -14,7 +15,7 @@
         </div>
         <button
           class="btn-primary"
-          onclick="showAddConsoleModal()"
+          data-action="showAddConsoleModal" data-args="[]"
           id="addConsoleBtn"
         >
           <span class="plus-icon">+</span> افزودن کنسول
@@ -56,13 +57,13 @@
         </div>
         <input type="hidden" id="consoleEditId" />
         <div class="modal-buttons">
-          <button class="btn-secondary" onclick="hideConsoleModal()">
+          <button class="btn-secondary" data-action="hideConsoleModal" data-args="[]">
             انصراف
           </button>
           <button
             class="btn-success"
             id="consoleSaveBtn"
-            onclick="saveConsole()"
+            data-action="saveConsole" data-args="[]"
           >
             ذخیره
           </button>
@@ -83,10 +84,10 @@
         </div>
         <input type="hidden" id="sessionIdForItem" />
         <div class="modal-buttons">
-          <button class="btn-secondary" onclick="hideSessionItemModal()">
+          <button class="btn-secondary" data-action="hideSessionItemModal" data-args="[]">
             انصراف
           </button>
-          <button class="btn-success" onclick="saveSessionItem()">
+          <button class="btn-success" data-action="saveSessionItem" data-args="[]">
             ثبت آیتم
           </button>
         </div>
@@ -107,16 +108,15 @@
         <input type="hidden" id="editItemSessionId" />
         <input type="hidden" id="editItemIndex" />
         <div class="modal-buttons">
-          <button class="btn-secondary" onclick="hideSessionItemEditModal()">
+          <button class="btn-secondary" data-action="hideSessionItemEditModal" data-args="[]">
             انصراف
           </button>
-          <button class="btn-success" onclick="saveSessionItemEdit()">
+          <button class="btn-success" data-action="saveSessionItemEdit" data-args="[]">
             بروزرسانی آیتم
           </button>
         </div>
       </div>
     </div>
-
 
     <div id="endSessionModal" class="modal">
       <div class="modal-content end-modal">
@@ -138,12 +138,12 @@
           </div>
         </div>
         <div class="modal-buttons">
-          <button class="btn-danger full-width" onclick="confirmEndSession()">
+          <button class="btn-danger full-width" data-action="confirmEndSession" data-args="[]">
             تسویه و بستن میز
           </button>
           <button
             class="btn-secondary full-width"
-            onclick="hideEndSessionModal()"
+            data-action="hideEndSessionModal" data-args="[]"
           >
             بازگشت به بازی
           </button>
@@ -151,6 +151,7 @@
       </div>
     </div>
 
+    <script src="api.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

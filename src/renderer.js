@@ -1,3 +1,9 @@
+function escapeHtml(value) {
+  const span = document.createElement("span");
+  span.textContent = String(value);
+  return span.innerHTML;
+}
+
 let lang = "fa";
 const texts = {
   fa: {
@@ -32,7 +38,7 @@ function formatPrice(value) {
 }
 
 async function loadConsoles() {
-  const consoles = await window.electronAPI.getConsoles();
+  const consoles = await window.appAPI.getConsoles();
   const list = document.getElementById("consoleList");
   list.innerHTML = "";
 
@@ -41,24 +47,24 @@ async function loadConsoles() {
     div.className = "card";
     div.innerHTML = `
             <div class="card-actions">
-                <button class="btn-icon edit-icon" title="${t("edit")}" onclick="editConsole(${c.id})">${icons.edit}</button>
-                <button class="btn-icon delete-icon" title="${t("delete")}" onclick="deleteConsole(${c.id})">${icons.delete}</button>
+                <button class="btn-icon edit-icon" title="${t("edit")}" data-action="editConsole" data-args="[${c.id}]">${icons.edit}</button>
+                <button class="btn-icon delete-icon" title="${t("delete")}" data-action="deleteConsole" data-args="[${c.id}]">${icons.delete}</button>
             </div>
             <div class="card-content">
-                <h3>${c.name}</h3>
+                <h3>${escapeHtml(c.name)}</h3>
                 <div class="price-info">💰 ${formatPrice(c.hourlyPrice)} ${t("hourly")}</div>
                 <div class="price-info">🎮 ${formatPrice(c.controllerPrice)} ${t("controller")}</div>
                 
                 <div class="controller-selector">
                     <span style="font-size:0.85rem">تعداد دسته:</span>
                     <div style="display:flex; align-items:center; gap:8px">
-                        <button class="selector-btn" onclick="changeControllers(${c.id}, -1)">-</button>
+                        <button class="selector-btn" data-action="changeControllers" data-args="[${c.id}, -1]">-</button>
                         <span id="controllers_${c.id}" style="font-weight:bold; min-width:15px; text-align:center">1</span>
-                        <button class="selector-btn" onclick="changeControllers(${c.id}, 1)">+</button>
+                        <button class="selector-btn" data-action="changeControllers" data-args="[${c.id}, 1]">+</button>
                     </div>
                 </div>
 
-                <button class="btn-success full-width" onclick="startSession(${c.id})">${t("startSession")}</button>
+                <button class="btn-success full-width" data-action="startSession" data-args="[${c.id}]">${t("startSession")}</button>
                 <div id="sessions_${c.id}"></div>
             </div>
         `;
@@ -76,7 +82,7 @@ function changeControllers(id, delta) {
 }
 
 async function loadSessionsForConsole(consoleId) {
-  const sessions = await window.electronAPI.getSessionsForConsole(consoleId);
+  const sessions = await window.appAPI.getSessionsForConsole(consoleId);
   const container = document.getElementById(`sessions_${consoleId}`);
   container.innerHTML = "";
 
@@ -92,9 +98,9 @@ async function loadSessionsForConsole(consoleId) {
                     جلسه #${s.id}
                 </span>
                 <div style="display:flex; align-items:center; gap:8px">
-                    <button class="selector-btn" onclick="updateSessionControllers(${s.id}, -1)">-</button>
+                    <button class="selector-btn" data-action="updateSessionControllers" data-args="[${s.id}, -1]">-</button>
                     <span id="session_controllers_${s.id}" style="font-weight:bold; min-width:15px; text-align:center">${s.controllers}</span>
-                    <button class="selector-btn" onclick="updateSessionControllers(${s.id}, 1)">+</button>
+                    <button class="selector-btn" data-action="updateSessionControllers" data-args="[${s.id}, 1]">+</button>
                     <span style="font-size:0.75rem; color:var(--text-muted)">دسته</span>
                 </div>
             </div>
@@ -102,21 +108,19 @@ async function loadSessionsForConsole(consoleId) {
             <div class="price-display" id="price_${s.id}">${formatPrice(0)}</div>
             
             <div style="display:flex; gap:8px; margin-top:15px">
-                <button class="btn-warning" id="pauseBtn_${s.id}" onclick="pauseSession(${s.id})" style="display: ${s.status === "active" ? "block" : "none"}">⏸ ${t("pause")}</button>
-                <button class="btn-success" id="resumeBtn_${s.id}" onclick="resumeSession(${s.id})" style="display: ${s.status === "paused" ? "block" : "none"}">▶ ${t("resume")}</button>
-                <button class="btn-danger" onclick="endSession(${s.id})">🏁 ${t("endSession")}</button>
+                <button class="btn-warning" id="pauseBtn_${s.id}" data-action="pauseSession" data-args="[${s.id}]" style="display: ${s.status === "active" ? "block" : "none"}">⏸ ${t("pause")}</button>
+                <button class="btn-success" id="resumeBtn_${s.id}" data-action="resumeSession" data-args="[${s.id}]" style="display: ${s.status === "paused" ? "block" : "none"}">▶ ${t("resume")}</button>
+                <button class="btn-danger" data-action="endSession" data-args="[${s.id}]">🏁 ${t("endSession")}</button>
             </div>
 
             
             <div id="shop_${s.id}" style="margin-top:12px; font-size:0.8rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.05); padding-top:8px"></div>
-            <button class="btn-primary" style="margin-top:10px; font-size:0.8rem; width:100%" onclick="showSessionItemModal(${s.id})">${t("addShop")}</button>
+            <button class="btn-primary" style="margin-top:10px; font-size:0.8rem; width:100%" data-action="showSessionItemModal" data-args="[${s.id}]">${t("addShop")}</button>
         `;
     container.appendChild(div);
 
     loadShopItemsForSession(s.id);
-    if (s.status === "active")
-      setInterval(() => updateTimeAndPrice(s.id), 1000);
-    else updateTimeAndPrice(s.id);
+    updateTimeAndPrice(s.id);
   });
 }
 
@@ -124,19 +128,19 @@ async function startSession(consoleId) {
   const controllers =
     parseInt(document.getElementById(`controllers_${consoleId}`).textContent) ||
     1;
-  await window.electronAPI.startSession({ consoleId, controllers });
+  await window.appAPI.startSession({ consoleId, controllers });
   loadSessionsForConsole(consoleId);
 }
 
 async function pauseSession(id) {
-  await window.electronAPI.pauseSession(id);
+  await window.appAPI.pauseSession(id);
   document.querySelector(`#session_${id}`).classList.add("paused");
   document.getElementById(`pauseBtn_${id}`).style.display = "none";
   document.getElementById(`resumeBtn_${id}`).style.display = "block";
 }
 
 async function resumeSession(id) {
-  await window.electronAPI.resumeSession(id);
+  await window.appAPI.resumeSession(id);
   document.querySelector(`#session_${id}`).classList.remove("paused");
   document.getElementById(`resumeBtn_${id}`).style.display = "none";
   document.getElementById(`pauseBtn_${id}`).style.display = "block";
@@ -145,8 +149,8 @@ async function resumeSession(id) {
 let endingSessionId;
 async function endSession(id) {
   endingSessionId = id;
-  const s = await window.electronAPI.getSession(id);
-  const c = await window.electronAPI.getConsole(s.consoleId);
+  const s = await window.appAPI.getSession(id);
+  const c = await window.appAPI.getConsole(s.consoleId);
   const now = s.status === "paused" ? new Date(s.pauseTime) : new Date();
   const timeMs = now.getTime() - new Date(s.startTime).getTime();
   const hours = timeMs / 3600000;
@@ -166,7 +170,7 @@ async function endSession(id) {
 }
 
 async function confirmEndSession() {
-  await window.electronAPI.endSession(endingSessionId);
+  await window.appAPI.endSession(endingSessionId);
   document.getElementById(`session_${endingSessionId}`).remove();
   hideEndSessionModal();
 }
@@ -176,9 +180,9 @@ function hideEndSessionModal() {
 }
 
 async function updateTimeAndPrice(id) {
-  const s = await window.electronAPI.getSession(id);
-  if (!s) return;
-  const c = await window.electronAPI.getConsole(s.consoleId);
+  const s = await window.appAPI.getSession(id);
+  if (!s || s.status === "ended" || !document.getElementById(`session_${id}`)) return;
+  const c = await window.appAPI.getConsole(s.consoleId);
   const now =
     s.status === "active" ? Date.now() : new Date(s.pauseTime).getTime();
   const timeMs = now - new Date(s.startTime).getTime();
@@ -229,7 +233,7 @@ function showAddConsoleModal() {
   showConsoleModal(false);
 }
 async function editConsole(id) {
-  const c = await window.electronAPI.getConsole(id);
+  const c = await window.appAPI.getConsole(id);
   showConsoleModal(true, id, c.name, c.hourlyPrice, c.controllerPrice);
 }
 async function saveConsole() {
@@ -237,16 +241,16 @@ async function saveConsole() {
   const name = document.getElementById("consoleName").value.trim();
   const h = parseFloat(document.getElementById("hourlyPrice").value);
   const ctrl = parseFloat(document.getElementById("controllerPrice").value);
-  if (!name || isNaN(h)) return alert("ورودی نامعتبر");
+  if (!name || !Number.isFinite(h) || h < 0 || !Number.isFinite(ctrl) || ctrl < 0) return window.appAPI.alert("ورودی نامعتبر");
   if (id)
-    await window.electronAPI.updateConsole({
+    await window.appAPI.updateConsole({
       id: Number(id),
       name,
       hourlyPrice: h,
       controllerPrice: ctrl,
     });
   else
-    await window.electronAPI.addConsole({
+    await window.appAPI.addConsole({
       name,
       hourlyPrice: h,
       controllerPrice: ctrl,
@@ -255,8 +259,8 @@ async function saveConsole() {
   loadConsoles();
 }
 async function deleteConsole(id) {
-  if (!confirm("آیا مطمئن هستید؟")) return;
-  await window.electronAPI.deleteConsole(id);
+  if (!await window.appAPI.confirm("آیا مطمئن هستید؟")) return;
+  await window.appAPI.deleteConsole(id);
   loadConsoles();
 }
 function showSessionItemModal(id) {
@@ -272,14 +276,14 @@ async function saveSessionItem() {
   const sessionId = parseInt(document.getElementById("sessionIdForItem").value);
   const name = document.getElementById("sessionItemName").value.trim();
   const price = parseFloat(document.getElementById("sessionItemPrice").value);
-  if (!name || isNaN(price)) return;
-  await window.electronAPI.addShopItemToSession({ sessionId, name, price });
+  if (!name || !Number.isFinite(price) || price < 0) return window.appAPI.alert("ورودی نامعتبر");
+  await window.appAPI.addShopItemToSession({ sessionId, name, price });
   hideSessionItemModal();
   loadShopItemsForSession(sessionId);
   updateTimeAndPrice(sessionId);
 }
 async function loadShopItemsForSession(id) {
-  const session = await window.electronAPI.getSession(id);
+  const session = await window.appAPI.getSession(id);
   const shopDiv = document.getElementById(`shop_${id}`);
   const items = JSON.parse(session.shopItems || "[]");
   shopDiv.innerHTML = "";
@@ -289,12 +293,12 @@ async function loadShopItemsForSession(id) {
       row.className = "shop-item-row";
       row.innerHTML = `
                 <div class="shop-item-info">
-                    <span>${item.name}</span>
+                    <span>${escapeHtml(item.name)}</span>
                     <span class="shop-item-price">${formatPrice(item.price)}</span>
                 </div>
                 <div class="shop-item-actions">
-                    <button class="shop-action-btn edit-text" onclick="editShopItem(${id}, ${index})">ویرایش</button>
-                    <button class="shop-action-btn delete-text" onclick="deleteShopItem(${id}, ${index})">حذف</button>
+                    <button class="shop-action-btn edit-text" data-action="editShopItem" data-args="[${id}, ${index}]">ویرایش</button>
+                    <button class="shop-action-btn delete-text" data-action="deleteShopItem" data-args="[${id}, ${index}]">حذف</button>
                 </div>
             `;
       shopDiv.appendChild(row);
@@ -307,13 +311,13 @@ async function updateSessionControllers(id, delta) {
   let val = parseInt(span.textContent) + delta;
   if (val < 1) val = 1;
   if (val > 4) val = 4;
+  await window.appAPI.updateSessionControllers({ sessionId: id, controllers: val });
   span.textContent = val;
-  await window.electronAPI.updateSessionControllers({ sessionId: id, controllers: val });
   updateTimeAndPrice(id);
 }
 
 async function editShopItem(sessionId, index) {
-  const session = await window.electronAPI.getSession(sessionId);
+  const session = await window.appAPI.getSession(sessionId);
   const items = JSON.parse(session.shopItems || "[]");
   const item = items[index];
   if (item) {
@@ -334,21 +338,60 @@ async function saveSessionItemEdit() {
   const index = parseInt(document.getElementById("editItemIndex").value);
   const name = document.getElementById("sessionItemEditName").value.trim();
   const price = parseFloat(document.getElementById("sessionItemEditPrice").value);
-  if (!name || isNaN(price)) return;
-  await window.electronAPI.updateShopItem({ sessionId, itemIndex: index, name, price });
+  if (!name || !Number.isFinite(price) || price < 0) return window.appAPI.alert("ورودی نامعتبر");
+  await window.appAPI.updateShopItem({ sessionId, itemIndex: index, name, price });
   hideSessionItemEditModal();
   loadShopItemsForSession(sessionId);
   updateTimeAndPrice(sessionId);
 }
 
 async function deleteShopItem(sessionId, index) {
-  if (!confirm("آیا از حذف این آیتم مطمئن هستید؟")) return;
-  await window.electronAPI.deleteShopItem({ sessionId, itemIndex: index });
+  if (!await window.appAPI.confirm("آیا از حذف این آیتم مطمئن هستید؟")) return;
+  await window.appAPI.deleteShopItem({ sessionId, itemIndex: index });
   loadShopItemsForSession(sessionId);
   updateTimeAndPrice(sessionId);
 }
 
 
+const actions = {
+  showAddConsoleModal, hideConsoleModal, saveConsole, editConsole, deleteConsole,
+  changeControllers, startSession, pauseSession, resumeSession, endSession,
+  confirmEndSession, hideEndSessionModal, updateSessionControllers,
+  showSessionItemModal, hideSessionItemModal, saveSessionItem,
+  editShopItem, deleteShopItem, hideSessionItemEditModal, saveSessionItemEdit,
+};
+
+// Delegation works for both the static modal buttons and dynamically rendered cards.
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-action]");
+  if (!button || button.disabled) return;
+  const action = actions[button.dataset.action];
+  if (!action) return;
+  button.disabled = true;
+  try {
+    await action(...JSON.parse(button.dataset.args || "[]"));
+  } catch (error) {
+    console.error(error);
+    await window.appAPI.alert(String(error));
+  } finally {
+    button.disabled = false;
+  }
+});
+
 window.addEventListener("DOMContentLoaded", () => {
   loadConsoles();
+  let updating = false;
+  setInterval(async () => {
+    if (updating) return;
+    updating = true;
+    try {
+      await Promise.all(Array.from(document.querySelectorAll(".session-block"), (element) =>
+        updateTimeAndPrice(Number(element.id.replace("session_", "")))
+      ));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      updating = false;
+    }
+  }, 1000);
 });
