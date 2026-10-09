@@ -24,6 +24,26 @@ function cardMotionKey(card, selected) {
   return JSON.stringify([card.console, selected, card.sessions.map((i) =>
     [i.session.id, i.session.status, i.session.controllers, i.items])]);
 }
+function statusBadge(status) {
+  const paths = {
+    available: '<path d="m3 6 2 2 4-4"/>',
+    active: '<path d="m4 2 6 4-6 4Z"/>',
+    paused: '<path d="M4 2v8M8 2v8"/>',
+    checkout: '<path d="M3 1h6v10l-2-1-1 1-1-1-2 1ZM5 4h2M5 6h2"/>',
+  };
+  return `<span class="status ${status}"><svg viewBox="0 0 12 12" aria-hidden="true">${paths[status]}</svg>${statusNames[status]}</span>`;
+}
+function emptyState(title, description, controls = "", kind = "receipt") {
+  const shape = kind === "console"
+    ? '<rect x="3" y="5" width="18" height="12" rx="3"/><path d="M8 21h8M12 17v4M7 9v4M5 11h4M16 10h.01M18 12h.01"/>'
+    : '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2ZM9 8h6M9 12h6"/>';
+  return `<div class="empty-state"><div class="empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true">${shape}</svg></div><h3>${title}</h3><p>${description}</p>${controls ? `<div class="empty-actions">${controls}</div>` : ""}</div>`;
+}
+function resetConsoleFilter() { $("consoleFilter").value = "all"; renderDashboard(); }
+async function resetHistoryFilters() {
+  for (const id of ["historyFrom", "historyTo", "historySearch", "historyConsole"]) $(id).value = "";
+  await filterHistory();
+}
 function button(action, text, args = [], style = "btn-secondary", disabled = false) {
   return `<button type="button" class="${style}" data-action="${action}" data-args="${escape(JSON.stringify(args))}" ${disabled ? "disabled" : ""}>${text}</button>`;
 }
@@ -75,7 +95,7 @@ function renderDashboard() {
     const status = cardStatus(card);
     const selected = state.selectedControllers.get(c.id) || 2;
     return `<article class="card ${status}" data-console-id="${c.id}" data-motion-key="${escape(cardMotionKey(card, selected))}">
-      <div class="card-top"><span class="status ${status}">${statusNames[status]}</span><div class="card-actions">
+      <div class="card-top">${statusBadge(status)}<div class="card-actions">
         ${c.archived ? '<span class="muted">بایگانی</span>' : button("showConsole", "ویرایش", [c.id], "text-button")}
         ${!c.archived && !card.sessions.length ? button("archiveConsole", "بایگانی", [c.id], "text-button danger-text") : ""}
       </div></div>
@@ -91,7 +111,9 @@ function renderDashboard() {
         ${button("startSession", "شروع بازی", [c.id], "btn-primary full-width")}
       `}
     </article>`;
-  }).join("") || `<div class="empty">${state.cards.length ? "کنسولی با این وضعیت وجود ندارد." : "هنوز کنسولی ثبت نشده است. اولین کنسول را اضافه کنید."}</div>`;
+  }).join("") || (state.cards.length
+    ? emptyState("کنسولی با این وضعیت وجود ندارد", "برای دیدن میزهای دیگر، فیلتر وضعیت را بردارید.", button("resetConsoleFilter", "نمایش همه کنسول‌ها"), "console")
+    : emptyState("هنوز کنسولی ثبت نشده است", "اولین میز بازی را اضافه کنید تا بتوانید جلسه‌ها را مدیریت کنید.", button("showConsole", "افزودن اولین کنسول", [], "btn-primary"), "console"));
   let entered = 0;
   for (const card of $("consoleList").querySelectorAll?.(".card") || []) {
     const oldKey = previous.get(card.dataset.consoleId);
@@ -119,7 +141,7 @@ function renderSession(invoice) {
     </div></div>
   </li>`).join("");
   return `<section class="session-block ${s.status}" id="session_${s.id}">
-    <div class="session-heading"><span>جلسه #${fmt.number(s.id)}</span><span class="status ${s.status}">${statusNames[s.status]}</span></div>
+    <div class="session-heading"><span>جلسه #${fmt.number(s.id)}</span>${statusBadge(s.status)}</div>
     <p class="hint">شروع: ${fmt.date(s.startTime)}</p>
     <div class="time" dir="ltr" id="time_${s.id}">${fmt.duration(invoice.playedMs)}</div>
     <div class="price-display" id="price_${s.id}">${fmt.price(invoice.gameCost)}</div>
@@ -271,14 +293,14 @@ function renderHistory() {
     <td>#${fmt.number(e.id)}</td><td>${escape(e.consoleName)}</td><td>${fmt.date(e.paidAt)}</td>
     <td dir="ltr">${fmt.duration(e.playedMs)}</td><td>${fmt.price(e.gameCost)}</td><td>${fmt.price(e.shopCost)}</td><td><strong>${fmt.price(e.total)}</strong></td>
     <td>${button("openReceipt", "مشاهده", [e.id], "text-button")}</td>
-  </tr>`).join("") || '<tr><td colspan="8" class="empty">در این بازه فاکتور تسویه‌شده‌ای وجود ندارد.</td></tr>';
+  </tr>`).join("") || `<tr><td colspan="8">${emptyState("فاکتوری پیدا نشد", "در این بازه فاکتور تسویه‌شده‌ای وجود ندارد. فیلترها را پاک کنید یا یک جلسه را تسویه کنید.", button("resetHistoryFilters", "نمایش همه سوابق") + button("switchView", "رفتن به کنسول‌ها", ["dashboard"], "text-button"))}</td></tr>`;
   $("pageInfo").textContent = `صفحه ${fmt.number(h.page)} از ${fmt.number(h.pages)}`;
   $("previousPage").disabled = h.page <= 1;
   $("nextPage").disabled = h.page >= h.pages;
   $("dailyReport").innerHTML = h.days.map((d) => `<tr><td>${fmt.jalaliDate(new Date(d.day + "T12:00:00Z"))}</td><td>${fmt.number(d.sessions)}</td><td>${fmt.price(d.gameRevenue)}</td><td>${fmt.price(d.shopRevenue)}</td><td>${fmt.price(d.totalRevenue)}</td></tr>`).join("")
-    || '<tr><td colspan="5" class="empty">داده‌ای وجود ندارد.</td></tr>';
+    || `<tr><td colspan="5">${emptyState("درآمدی ثبت نشده است", "گزارش روزانه پس از ثبت پرداخت نمایش داده می‌شود.")}</td></tr>`;
   $("consoleReport").innerHTML = h.consoles.map((c) => `<tr><td>${escape(c.name)}</td><td>${fmt.number(c.sessions)}</td><td dir="ltr">${fmt.duration(c.playedMs)}</td><td>${fmt.price(c.revenue)}</td></tr>`).join("")
-    || '<tr><td colspan="4" class="empty">داده‌ای وجود ندارد.</td></tr>';
+    || `<tr><td colspan="4">${emptyState("گزارش کنسولی وجود ندارد", "جلسه‌های تسویه‌شده، مدت استفاده و درآمد هر کنسول را مشخص می‌کنند.", "", "console")}</td></tr>`;
 }
 async function exportHistory() {
   if (await window.appAPI.exportHistory(readFilter())) notify("فایل گزارش ذخیره شد.");
@@ -332,6 +354,9 @@ function applySidebar(collapsed) {
   control.setAttribute("aria-expanded", String(!collapsed));
   control.setAttribute("aria-label", label);
   control.setAttribute("title", label);
+  for (const [id, title] of [["nav-dashboard", "کنسول‌ها"], ["nav-history", "سوابق و گزارش"]]) {
+    $(id).setAttribute("title", collapsed ? "" : title);
+  }
 }
 function toggleSidebar() {
   const collapsed = document.documentElement.dataset.sidebar !== "collapsed";
@@ -339,6 +364,8 @@ function toggleSidebar() {
   try { window.localStorage.setItem("gamagement-sidebar", collapsed ? "collapsed" : "expanded"); } catch {}
 }
 async function clearHistory() {
+  const menu = document.querySelector(".history-menu");
+  if (menu) menu.open = false;
   if (!await window.appAPI.confirm("همه جلسه‌های پرداخت‌شده و فاکتورهای آن‌ها برای همیشه حذف شوند؟ این کار قابل بازگشت نیست. جلسه‌های باز حفظ می‌شوند.")) return;
   const removed = await window.appAPI.clearHistory();
   state.filter.page = 1;
@@ -356,7 +383,7 @@ function toggleTheme() {
   try { window.localStorage.setItem("gamagement-theme", theme); } catch {}
 }
 const actions = {
-  toggleTheme, toggleSidebar, clearHistory,
+  toggleTheme, toggleSidebar, clearHistory, resetConsoleFilter, resetHistoryFilters,
   switchView, showConsole, saveConsole, archiveConsole, changeStartControllers,
   startSession, pauseSession, resumeSession, changeSessionControllers,
   showSale, saveSale, removeItem, checkout, confirmCheckout, cancelCheckout,
@@ -381,6 +408,8 @@ document.addEventListener("pointerdown", () => {
   document.documentElement.dataset.input = "pointer";
 });
 document.addEventListener("click", (event) => {
+  const menu = document.querySelector(".history-menu");
+  if (menu?.open && !menu.contains(event.target)) menu.open = false;
   const control = event.target.closest("button[data-action]");
   if (control && !control.disabled) runAction(control.dataset.action, JSON.parse(control.dataset.args || "[]"), control);
 });
@@ -392,6 +421,10 @@ document.addEventListener("submit", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   document.documentElement.dataset.input = "keyboard";
+  if (event.key === "Escape") {
+    const menu = document.querySelector(".history-menu");
+    if (menu?.open) menu.open = false;
+  }
   if (event.key === "Escape" && state.busy && document.querySelector("dialog[open]")) event.preventDefault();
 });
 window.addEventListener("DOMContentLoaded", async () => {

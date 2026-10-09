@@ -1367,3 +1367,50 @@ html[data-sidebar="collapsed"] .sidebar-footer {
     display: none;
   }
 }
+
+.status { padding:3px 8px; border:1px solid transparent; border-radius:7px; font-weight:600; line-height:1.6; }
+.status::before { display:none; }
+.status svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.status.available { color:#525e6d; background:#edf0f4; border-color:#dce1e8; }
+.status.active { color:#237340; background:#eaf5ed; border-color:#cce5d3; }
+.status.paused { color:#835b10; background:#fff3d9; border-color:#eeddb0; }
+.status.checkout { color:#245fa5; background:#eaf2ff; border-color:#cfdef4; }
+[data-theme="dark"] .status.available { color:#c0c7d0; background:#363b44; border-color:#484e59; }
+[data-theme="dark"] .status.active { color:#8ed5a6; background:#263e30; border-color:#3a5945; }
+[data-theme="dark"] .status.paused { color:#edcc83; background:#443b26; border-color:#5d5032; }
+[data-theme="dark"] .status.checkout { color:#9cc5ff; background:#293c56; border-color:#3b5476; }
+.empty-state { grid-column:1/-1; padding:38px 20px; display:flex; align-items:center; flex-direction:column; text-align:center; white-space:normal; }
+.empty-state h3 { font-size:15px; margin-bottom:7px; }
+.empty-state p { max-width:380px; color:var(--muted); font-size:12px; }
+.empty-symbol { display:grid; place-items:center; width:48px; height:48px; margin-bottom:15px; border-radius:14px; background:#80808012; color:var(--muted); }
+.empty-symbol svg { width:26px; height:26px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
+.empty-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:18px; }
+.receipt-list-title { font-size:14px; margin-bottom:12px; }
+.report-details { border:1px solid var(--border); background:var(--surface); border-radius:12px; }
+.report-details > summary { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; font-weight:600; cursor:pointer; list-style:none; }
+.report-details > summary small { font-weight:400; color:var(--muted); margin-top:2px; }
+.report-details summary svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.6; transition:transform 160ms var(--motion-out); }
+.report-details[open] summary svg { transform:rotate(180deg); }
+.report-details .report-grid { padding:6px 18px 18px; }
+details > summary::-webkit-details-marker { display:none; }
+summary:focus-visible { outline:3px solid #007aff66; outline-offset:3px; border-radius:8px; }
+.history-menu { position:relative; }
+.history-menu > summary { padding:5px 13px; border:1px solid var(--border); border-radius:11px; background:var(--surface); cursor:pointer; list-style:none; }
+.history-menu-content { position:absolute; inset-inline-end:0; top:calc(100% + 8px); width:190px; z-index:12; padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); box-shadow:0 8px 25px #0002; }
+header { transition:width 180ms var(--motion-out), background-color 180ms ease, border-color 180ms ease; }
+.container { transition:margin-inline-start 180ms var(--motion-out); }
+.sidebar-toggle svg { transition:transform 180ms var(--motion-out); }
+html[data-sidebar="collapsed"] .sidebar-toggle svg { transform:rotate(180deg); }
+html[data-sidebar="collapsed"] nav button, html[data-sidebar="collapsed"] .theme-button { position:relative; }
+html[data-sidebar="collapsed"] nav button::after, html[data-sidebar="collapsed"] .theme-button::after { content:attr(aria-label); position:absolute; inset-inline-start:calc(100% + 12px); top:50%; transform:translateY(-50%); padding:5px 9px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:7px; box-shadow:0 3px 12px #0002; font-size:12px; font-weight:400; white-space:nowrap; opacity:0; pointer-events:none; }
+html[data-sidebar="collapsed"] nav button:focus-visible::after, html[data-sidebar="collapsed"] .theme-button:focus-visible::after { opacity:1; }
+@media(hover:hover) and (pointer:fine) {
+  html[data-sidebar="collapsed"] nav button:hover::after, html[data-sidebar="collapsed"] .theme-button:hover::after { opacity:1; }
+}
+html[data-input="keyboard"] header, html[data-input="keyboard"] .container, html[data-input="keyboard"] .sidebar-toggle svg { transition:none; }
+@media(prefers-reduced-motion:reduce) {
+  header, .container, .sidebar-toggle svg, .report-details summary svg { transition:none !important; }
+}
+
+.brand, .sidebar-info { overflow: hidden; }
+nav button span, .theme-button span { white-space: nowrap; overflow: hidden; }

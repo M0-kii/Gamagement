@@ -33,7 +33,7 @@
       <div id="consoleList" class="grid"><p class="empty">در حال دریافت کنسول‌ها…</p></div>
     </section>
     <section id="view-history" hidden aria-labelledby="history-title">
-      <div class="section-header"><div><h2 id="history-title">سوابق و گزارش</h2><p>فاکتورهای تسویه‌شده؛ درآمد بر اساس زمان پرداخت در تهران</p></div><div class="header-actions"><button class="btn-secondary" data-action="exportHistory">خروجی CSV</button><button class="btn-secondary danger-text" data-action="clearHistory">پاک کردن همه سوابق</button></div></div>
+      <div class="section-header"><div><h2 id="history-title">سوابق و گزارش</h2><p>فاکتورهای تسویه‌شده؛ درآمد بر اساس زمان پرداخت در تهران</p></div><div class="header-actions"><button class="btn-secondary" data-action="exportHistory">خروجی CSV</button><details class="history-menu"><summary aria-label="عملیات بیشتر سوابق">بیشتر <span aria-hidden="true">⋯</span></summary><div class="history-menu-content"><button class="text-button danger-text" data-action="clearHistory">پاک کردن همه سوابق</button></div></details></div></div>
       <form id="historyFilter" class="filter-bar" data-submit="filterHistory">
         <label>از تاریخ (شمسی)<input id="historyFrom" placeholder="۱۴۰۵/۰۷/۰۱" inputmode="numeric" autocomplete="off" /></label>
         <label>تا تاریخ (شمسی)<input id="historyTo" placeholder="۱۴۰۵/۰۷/۱۷" inputmode="numeric" autocomplete="off" /></label>
@@ -42,12 +42,16 @@
         <button class="btn-primary" type="submit">نمایش گزارش</button>
       </form>
       <div id="historySummary" class="stats"></div>
+      <h3 class="receipt-list-title">فاکتورها</h3>
       <div class="table-wrap"><table><thead><tr><th scope="col">جلسه</th><th scope="col">کنسول</th><th scope="col">زمان پرداخت</th><th scope="col">مدت بازی</th><th scope="col">بازی</th><th scope="col">فروشگاه</th><th scope="col">جمع</th><th scope="col">فاکتور</th></tr></thead><tbody id="historyList"></tbody></table></div>
       <div class="pagination"><button id="previousPage" class="btn-secondary" data-action="changePage" data-args="[-1]">صفحه قبل</button><span id="pageInfo"></span><button id="nextPage" class="btn-secondary" data-action="changePage" data-args="[1]">صفحه بعد</button></div>
-      <div class="report-grid">
+      <details class="report-details">
+        <summary><span>گزارش‌های تفصیلی<small>درآمد روزانه و عملکرد کنسول‌ها</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
+        <div class="report-grid">
         <section><h3>درآمد روزانه</h3><div class="table-wrap"><table><thead><tr><th scope="col">روز</th><th scope="col">جلسه</th><th scope="col">بازی</th><th scope="col">فروشگاه</th><th scope="col">جمع</th></tr></thead><tbody id="dailyReport"></tbody></table></div></section>
         <section><h3>عملکرد کنسول‌ها</h3><div class="table-wrap"><table><thead><tr><th scope="col">کنسول</th><th scope="col">جلسه</th><th scope="col">مدت استفاده</th><th scope="col">درآمد</th></tr></thead><tbody id="consoleReport"></tbody></table></div></section>
       </div>
+      </details>
     </section>
   </main>
   <dialog id="consoleDialog" aria-labelledby="consoleDialogTitle">
