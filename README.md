@@ -11,9 +11,10 @@ The interface is Persian and right-to-left.
 - Paused time excluded from billing, with the original start timestamp retained.
 - Checkout freezes the bill. Confirming payment saves the displayed amount;
   cancelling restores the previous session state.
-- Product catalog with unit prices, quantities, and stock management.
+- Session purchases entered with a name and price.
+- Rounded desktop interface with remembered light and dark appearance.
 - Searchable receipts, Jalali date filters, daily revenue, console usage, and CSV export.
-- Printable receipts and archived consoles/products with retained history.
+- Printable receipts and archived consoles with retained history.
 
 ## Run
 
@@ -47,17 +48,15 @@ Prices and saved totals use integer tomans. Play charges are accumulated across
 controller segments, then rounded once to the nearest toman; halves round up.
 The first two controllers are included in the hourly price.
 
-Console name and rates are saved with each session. Product name and unit price
-are saved with each purchase. Later edits do not change those snapshots.
-Editing a purchase quantity uses its original unit price.
+Console name and rates are saved with each session. Purchase names and prices
+are saved directly on that session and retained in its receipt.
 
 Opening checkout stops the timer and prevents session edits. Payment saves the
 frozen bill. Returning to play excludes the checkout interval and restores the
 previous active or paused state. Pending checkouts survive an app restart.
 
-Stock is deducted when a product is added to a session. Reducing its quantity
-or removing the purchase returns the difference to stock. Archived products
-remain referenced by existing receipts.
+Purchases need only a name and price. They do not create shared products or
+require stock management. Purchases from earlier versions remain in receipts.
 
 ## History and reports
 

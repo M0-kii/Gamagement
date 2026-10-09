@@ -583,3 +583,15 @@ pub fn delete_session_item(conn: &Connection, id: i64) -> AppResult<()> {
         .map_err(err)?;
     tx.commit().map_err(err)
 }
+
+pub fn add_session_item(conn: &Connection, data: SessionItemInput) -> AppResult<()> {
+    name(&data.name)?;
+    price(data.price)?;
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    editable_session(&tx, data.session_id)?;
+    tx.execute(
+        "INSERT INTO session_items (sessionId,productId,name,unitPrice,quantity) VALUES (?,NULL,?,?,1)",
+        params![data.session_id, data.name.trim(), data.price],
+    ).map_err(err)?;
+    tx.commit().map_err(err)
+}

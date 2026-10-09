@@ -186,3 +186,11 @@ pub struct HistoryPage {
     pub page: i64,
     pub pages: i64,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionItemInput {
+    pub session_id: i64,
+    pub name: String,
+    pub price: i64,
+}

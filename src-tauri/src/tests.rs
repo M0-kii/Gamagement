@@ -615,3 +615,29 @@ fn existing_database_upgrade_creates_safety_copy() {
     drop(upgraded);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn manual_purchases_are_local_validated_and_frozen_at_checkout() {
+    let conn = fixture();
+    let id = start(&conn, 2);
+    let purchase = |name: &str, price| SessionItemInput {
+        session_id: id,
+        name: name.into(),
+        price,
+    };
+    assert!(add_session_item(&conn, purchase(" ", 100)).is_err());
+    assert!(add_session_item(&conn, purchase("Drink", -1)).is_err());
+    add_session_item(&conn, purchase(" Drink ", 7000)).unwrap();
+    let bill = invoice_at(&conn, id, at(60)).unwrap();
+    assert_eq!(bill.items[0].name, "Drink");
+    assert_eq!(bill.items[0].quantity, 1);
+    assert_eq!(bill.items[0].product_id, None);
+    assert_eq!(bill.shop_cost, 7000);
+    assert!(get_products(&conn).unwrap().is_empty());
+    prepare_checkout_at(&conn, id, at(60)).unwrap();
+    assert!(add_session_item(&conn, purchase("Snack", 3000)).is_err());
+    assert!(delete_session_item(&conn, bill.items[0].id).is_err());
+    cancel_checkout_at(&conn, id, at(70)).unwrap();
+    delete_session_item(&conn, bill.items[0].id).unwrap();
+    assert_eq!(invoice_at(&conn, id, at(80)).unwrap().shop_cost, 0);
+}

@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="مدیریت کنسول، جلسه‌های بازی، فروشگاه و گزارش گیم‌سنتر" />
   <title>Gamagement | مدیریت گیم‌سنتر</title>
   <link rel="icon" type="image/x-icon" href="/assets/icon.ico" />
+  <script src="appearance.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,11 +14,10 @@
   <header>
     <div class="header-content">
       <div class="brand"><h1>AsiaGame</h1><span>مدیریت گیم‌سنتر</span></div>
-      <nav aria-label="بخش‌های برنامه">
-        <button data-action="switchView" data-args='["dashboard"]' aria-current="page" id="nav-dashboard">کنسول‌ها</button>
-        <button data-action="switchView" data-args='["products"]' id="nav-products">فروشگاه</button>
-        <button data-action="switchView" data-args='["history"]' id="nav-history">سوابق و گزارش</button>
-      </nav>
+      <p class="sidebar-label">فضای کاری</p><nav aria-label="بخش‌های برنامه">
+        <button data-action="switchView" data-args='["dashboard"]' aria-current="page" id="nav-dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="3"/><path d="M8 21h8M12 17v4M7 10h4M9 8v4M16 10h.01M18 12h.01"/></svg><span>کنسول‌ها</span></button>
+        <button data-action="switchView" data-args='["history"]' id="nav-history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l3 3v15H5V3zM8 9h8M8 13h8M8 17h5"/></svg><span>سوابق و گزارش</span></button>
+      </nav><div class="sidebar-footer"><button class="theme-button" data-action="toggleTheme" aria-label="تغییر ظاهر برنامه"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z"/></svg><span id="themeLabel">حالت روشن</span></button><strong>AsiaGame</strong>مدیریت جلسه‌ها و درآمد</div>
     </div>
   </header>
   <main id="main" class="container" tabindex="-1">
@@ -30,11 +30,6 @@
         <select id="consoleFilter"><option value="all">همه کنسول‌ها</option><option value="available">آزاد</option><option value="active">در حال بازی</option><option value="paused">متوقف</option><option value="checkout">در حال تسویه</option></select>
       </div>
       <div id="consoleList" class="grid"><p class="empty">در حال دریافت کنسول‌ها…</p></div>
-    </section>
-    <section id="view-products" hidden aria-labelledby="products-title">
-      <div class="section-header"><div><h2 id="products-title">فروشگاه</h2><p>قیمت محصولات و موجودی قابل فروش</p></div><button class="btn-primary" data-action="showProduct">افزودن محصول</button></div>
-      <div class="toolbar"><label for="productSearch">جست‌وجوی محصول</label><input id="productSearch" type="search" placeholder="نام محصول" /></div>
-      <div class="table-wrap"><table><thead><tr><th scope="col">محصول</th><th scope="col">قیمت واحد</th><th scope="col">موجودی</th><th scope="col">عملیات</th></tr></thead><tbody id="productList"></tbody></table></div>
     </section>
     <section id="view-history" hidden aria-labelledby="history-title">
       <div class="section-header"><div><h2 id="history-title">سوابق و گزارش</h2><p>فاکتورهای تسویه‌شده؛ درآمد بر اساس زمان پرداخت در تهران</p></div><button class="btn-secondary" data-action="exportHistory">خروجی CSV</button></div>
@@ -65,32 +60,14 @@
       <div class="modal-buttons"><button type="submit" class="btn-primary">ذخیره</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["consoleDialog"]'>انصراف</button></div>
     </form>
   </dialog>
-  <dialog id="productDialog" aria-labelledby="productDialogTitle">
-    <form data-submit="saveProduct">
-      <h3 id="productDialogTitle">افزودن محصول</h3><p class="hint">قیمت فروش‌های قبلی با ویرایش محصول تغییر نمی‌کند.</p>
-      <input id="productEditId" type="hidden" />
-      <label for="productName">نام محصول</label><input id="productName" required maxlength="100" />
-      <label for="productPrice">قیمت واحد (تومان)</label><input id="productPrice" type="number" min="0" max="1000000000" step="1" required />
-      <label for="productStock">موجودی فعلی</label><input id="productStock" type="number" min="0" max="1000000" step="1" required />
-      <p class="form-error" role="alert"></p>
-      <div class="modal-buttons"><button type="submit" class="btn-primary">ذخیره</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["productDialog"]'>انصراف</button></div>
-    </form>
-  </dialog>
   <dialog id="saleDialog" aria-labelledby="saleTitle">
     <form data-submit="saveSale">
-      <h3 id="saleTitle">افزودن محصول به جلسه</h3><input id="saleSessionId" type="hidden" />
-      <label for="saleProduct">محصول</label><select id="saleProduct" required></select>
-      <label for="saleQuantity">تعداد</label><input id="saleQuantity" type="number" min="1" max="100000" step="1" value="1" required />
-      <p id="salePreview" class="hint"></p><p class="form-error" role="alert"></p>
+      <h3 id="saleTitle">افزودن خرید</h3><input id="saleSessionId" type="hidden" />
+      <p class="hint">این خرید فقط به فاکتور همین جلسه اضافه می‌شود.</p>
+      <label for="saleName">نام</label><input id="saleName" required maxlength="100" placeholder="مثال: نوشابه" autocomplete="off" />
+      <label for="salePrice">قیمت (تومان)</label><input id="salePrice" type="number" min="0" max="1000000000" step="1" required />
+      <p class="form-error" role="alert"></p>
       <div class="modal-buttons"><button type="submit" class="btn-primary" id="saleSave">افزودن</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["saleDialog"]'>انصراف</button></div>
-    </form>
-  </dialog>
-  <dialog id="quantityDialog" aria-labelledby="quantityTitle">
-    <form data-submit="saveQuantity">
-      <h3 id="quantityTitle">ویرایش تعداد</h3><p id="quantityName"></p><input id="quantityItemId" type="hidden" />
-      <label for="itemQuantity">تعداد</label><input id="itemQuantity" type="number" min="1" max="100000" step="1" required />
-      <p class="hint">قیمت واحد هنگام فروش ثبت شده و ثابت می‌ماند.</p><p class="form-error" role="alert"></p>
-      <div class="modal-buttons"><button type="submit" class="btn-primary">ذخیره</button><button type="button" class="btn-secondary" data-action="closeDialog" data-args='["quantityDialog"]'>انصراف</button></div>
     </form>
   </dialog>
   <dialog id="receiptDialog" class="receipt-dialog" aria-labelledby="receiptTitle">

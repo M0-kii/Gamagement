@@ -1,6 +1,6 @@
 const fmt = window.formatters;
 const state = {
-  view: "dashboard", cards: [], products: [], consoles: [], invoice: null,
+  view: "dashboard", cards: [], consoles: [], invoice: null,
   selectedControllers: new Map(), history: null, filter: {}, busy: false, polling: false,
 };
 const $ = (id) => document.getElementById(id);
@@ -56,7 +56,7 @@ function renderDashboard() {
         ${c.archived ? '<span class="muted">بایگانی</span>' : button("showConsole", "ویرایش", [c.id], "text-button")}
         ${!c.archived && !card.sessions.length ? button("archiveConsole", "بایگانی", [c.id], "text-button danger-text") : ""}
       </div></div>
-      <h3>${escape(c.name)}</h3>
+      <div class="console-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h10c3 0 5 8 3 10-1 1-3-2-4-3H8c-1 1-3 4-4 3-2-2 0-10 3-10Z"/><path d="M7 9v4M5 11h4M16 10h.01M18 12h.01"/></svg></div><h3>${escape(c.name)}</h3>
       <p class="rate">${fmt.price(c.hourlyPrice)} <span>در ساعت</span></p>
       <p class="muted">هر دسته اضافه: ${fmt.price(c.controllerPrice)} در ساعت</p>
       ${card.sessions.length ? card.sessions.map(renderSession).join("") : `
@@ -74,9 +74,9 @@ function renderSession(invoice) {
   const s = invoice.session;
   const editable = s.status !== "checkout";
   const items = invoice.items.map((item) => `<li class="shop-item-row">
-    <div><strong>${escape(item.name)}</strong><small>${fmt.number(item.quantity)} × ${fmt.price(item.unitPrice)}</small></div>
+    <div><strong>${escape(item.name)}</strong>${item.quantity > 1 ? `<small>${fmt.number(item.quantity)} × ${fmt.price(item.unitPrice)}</small>` : ""}</div>
     <div><span>${fmt.price(item.total)}</span><div class="shop-item-actions">
-      ${editable ? button("showQuantity", "تعداد", [s.id, item.id], "text-button") + button("removeItem", "حذف", [item.id], "text-button danger-text") : ""}
+      ${editable ? button("removeItem", "حذف", [item.id], "text-button danger-text") : ""}
     </div></div>
   </li>`).join("");
   return `<section class="session-block ${s.status}" id="session_${s.id}">
@@ -96,7 +96,7 @@ function renderSession(invoice) {
       ${button("checkout", s.status === "checkout" ? "ادامه تسویه" : "پایان و تسویه", [s.id], "btn-primary")}
     </div>
     ${items ? `<ul class="shop-items">${items}</ul>` : ""}
-    ${editable ? button("showSale", "افزودن محصول", [s.id], "btn-secondary full-width") : '<p class="hint">مبلغ فاکتور ثابت است. برای ادامه بازی، تسویه را لغو کنید.</p>'}
+    ${editable ? button("showSale", "افزودن خرید", [s.id], "btn-secondary full-width") : '<p class="hint">مبلغ فاکتور ثابت است. برای ادامه بازی، تسویه را لغو کنید.</p>'}
   </section>`;
 }
 function changeStartControllers(id, delta) {
@@ -140,84 +140,24 @@ async function archiveConsole(id) {
   await window.appAPI.archiveConsole(id);
   await reloadDashboard();
 }
-async function reloadProducts() {
-  state.products = await window.appAPI.getProducts();
-  renderProducts();
-}
-function renderProducts() {
-  const search = $("productSearch").value.trim().toLowerCase();
-  const products = state.products.filter((p) => p.name.toLowerCase().includes(search));
-  $("productList").innerHTML = products.map((p) => `<tr>
-    <td><strong>${escape(p.name)}</strong></td><td>${fmt.price(p.price)}</td>
-    <td><span class="stock ${p.stock === 0 ? "empty-stock" : p.stock <= 5 ? "low-stock" : ""}">${fmt.number(p.stock)}${p.stock === 0 ? " · ناموجود" : ""}</span></td>
-    <td class="row-actions">${button("showProduct", "ویرایش", [p.id], "text-button")}${button("archiveProduct", "بایگانی", [p.id], "text-button danger-text")}</td>
-  </tr>`).join("") || '<tr><td colspan="4" class="empty">محصولی پیدا نشد. محصولات فروشگاه را ثبت کنید.</td></tr>';
-}
-function showProduct(id) {
-  const p = state.products.find((p) => p.id === id);
-  $("productDialogTitle").textContent = p ? "ویرایش محصول" : "افزودن محصول";
-  $("productEditId").value = p?.id || "";
-  $("productName").value = p?.name || "";
-  $("productPrice").value = p?.price ?? "";
-  $("productStock").value = p?.stock ?? 0;
-  showDialog("productDialog");
-}
-async function saveProduct() {
-  await window.appAPI.saveProduct({
-    id: $("productEditId").value ? Number($("productEditId").value) : null,
-    name: $("productName").value.trim(), price: integer("productPrice"), stock: integer("productStock", 0, 1_000_000),
-  });
-  closeDialog("productDialog");
-  await reloadProducts();
-  notify("محصول ذخیره شد.");
-}
-async function archiveProduct(id) {
-  if (!await window.appAPI.confirm("این محصول از فهرست فروش بایگانی شود؟ خریدهای قبلی حفظ می‌شوند.")) return;
-  await window.appAPI.archiveProduct(id);
-  await reloadProducts();
-}
-async function showSale(id) {
-  await reloadProducts();
+function showSale(id) {
   $("saleSessionId").value = id;
-  $("saleQuantity").value = 1;
-  $("saleProduct").innerHTML = state.products.filter((p) => p.stock > 0).map((p) =>
-    `<option value="${p.id}">${escape(p.name)} · ${fmt.price(p.price)}</option>`).join("");
-  $("saleSave").disabled = !$("saleProduct").value;
-  updateSalePreview();
+  $("saleName").value = "";
+  $("salePrice").value = "";
   showDialog("saleDialog");
 }
-function updateSalePreview() {
-  const p = state.products.find((p) => p.id === Number($("saleProduct").value));
-  $("salePreview").textContent = p
-    ? `موجودی: ${fmt.number(p.stock)} · جمع: ${fmt.price(p.price * (Number($("saleQuantity").value) || 0))}`
-    : "محصول موجودی ندارد. ابتدا در بخش فروشگاه محصول ثبت کنید.";
-}
 async function saveSale() {
-  await window.appAPI.addProductToSession({ sessionId: Number($("saleSessionId").value), productId: Number($("saleProduct").value), quantity: integer("saleQuantity", 1, 100_000) });
+  await window.appAPI.addSessionItem({
+    sessionId: Number($("saleSessionId").value),
+    name: $("saleName").value.trim(), price: integer("salePrice"),
+  });
   closeDialog("saleDialog");
   await reloadDashboard();
-  await reloadProducts();
-}
-async function showQuantity(sessionId, itemId) {
-  const invoice = await window.appAPI.getInvoice(sessionId);
-  const item = invoice.items.find((i) => i.id === itemId);
-  if (!item) return;
-  $("quantityItemId").value = item.id;
-  $("itemQuantity").value = item.quantity;
-  $("quantityName").textContent = item.name;
-  showDialog("quantityDialog");
-}
-async function saveQuantity() {
-  await window.appAPI.updateItemQuantity({ itemId: Number($("quantityItemId").value), quantity: integer("itemQuantity", 1, 100_000) });
-  closeDialog("quantityDialog");
-  await reloadDashboard();
-  await reloadProducts();
 }
 async function removeItem(id) {
-  if (!await window.appAPI.confirm("این خرید حذف و تعداد آن به موجودی بازگردانده شود؟")) return;
+  if (!await window.appAPI.confirm("این خرید از فاکتور جلسه حذف شود؟")) return;
   await window.appAPI.deleteSessionItem(id);
   await reloadDashboard();
-  await reloadProducts();
 }
 async function checkout(id) {
   state.invoice = await window.appAPI.prepareCheckout(id);
@@ -305,13 +245,12 @@ async function exportHistory() {
 }
 async function switchView(view) {
   state.view = view;
-  for (const name of ["dashboard", "products", "history"]) {
+  for (const name of ["dashboard", "history"]) {
     $("view-" + name).hidden = name !== view;
     $("nav-" + name).setAttribute("aria-current", name === view ? "page" : "false");
   }
   $("notification").hidden = true;
   if (view === "dashboard") await reloadDashboard();
-  if (view === "products") await reloadProducts();
   if (view === "history") {
     state.consoles = await window.appAPI.getConsoles(true);
     const selected = $("historyConsole").value;
@@ -341,11 +280,21 @@ async function refreshLive() {
     notify("دریافت وضعیت جلسه‌ها انجام نشد: " + String(error), true);
   } finally { state.polling = false; }
 }
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  $("themeLabel").textContent = theme === "dark" ? "حالت روشن" : "حالت تیره";
+  document.querySelector(".theme-button")?.setAttribute("aria-pressed", String(theme === "dark"));
+}
+function toggleTheme() {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(theme);
+  try { window.localStorage.setItem("gamagement-theme", theme); } catch {}
+}
 const actions = {
+  toggleTheme,
   switchView, showConsole, saveConsole, archiveConsole, changeStartControllers,
   startSession, pauseSession, resumeSession, changeSessionControllers,
-  showProduct, saveProduct, archiveProduct, showSale, saveSale, showQuantity,
-  saveQuantity, removeItem, checkout, confirmCheckout, cancelCheckout,
+  showSale, saveSale, removeItem, checkout, confirmCheckout, cancelCheckout,
   openReceipt, closeReceipt, printReceipt, closeDialog, filterHistory, changePage, exportHistory,
 };
 async function runAction(action, args = [], control = null, form = null) {
@@ -377,12 +326,12 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && state.busy && document.querySelector("dialog[open]")) event.preventDefault();
 });
 window.addEventListener("DOMContentLoaded", async () => {
+  let theme = "dark";
+  try { theme = window.localStorage.getItem("gamagement-theme") || theme; } catch {}
+  applyTheme(theme === "light" ? "light" : "dark");
   $("historyFrom").value = fmt.jalaliDate().replace(/\/\d{2}$/, "/01");
   $("historyTo").value = fmt.jalaliDate();
   $("consoleFilter").addEventListener("change", renderDashboard);
-  $("productSearch").addEventListener("input", renderProducts);
-  $("saleProduct").addEventListener("change", updateSalePreview);
-  $("saleQuantity").addEventListener("input", updateSalePreview);
   $("receiptDialog").addEventListener("cancel", (event) => {
     if (state.invoice?.session.status === "checkout") {
       event.preventDefault();

@@ -34,11 +34,7 @@ test("every frontend IPC command is registered in Tauri and preserves named argu
     ["cancelCheckout", "cancel_checkout", 7, { id: 7 }],
     ["confirmCheckout", "confirm_checkout", 7, { id: 7 }],
     ["updateSessionControllers", "update_session_controllers", data, { data }],
-    ["getProducts", "get_products", undefined, {}],
-    ["saveProduct", "save_product", data, { data }],
-    ["archiveProduct", "archive_product", 7, { id: 7 }],
-    ["addProductToSession", "add_product_to_session", data, { data }],
-    ["updateItemQuantity", "update_item_quantity", data, { data }],
+    ["addSessionItem", "add_session_item", data, { data }],
     ["deleteSessionItem", "delete_session_item", 7, { id: 7 }],
     ["getHistory", "get_history", data, { filter: data }],
     ["exportHistory", "export_history", data, { filter: data }],
@@ -84,10 +80,12 @@ function renderer(api = {}) {
     return elements.get(id);
   };
   const document = {
+    documentElement: { dataset: { theme: "dark" } },
     getElementById: element, querySelector: () => null,
     addEventListener: (name, handler) => { listeners[name] = handler; },
   };
-  const window = { formatters: formatters(), appAPI: api, addEventListener() {}, print() {} };
+  const window = { localStorage: new Map(), formatters: formatters(), appAPI: api, addEventListener() {}, print() {} };
+  window.localStorage.setItem = (key, value) => window.localStorage.set(key, value);
   const context = vm.createContext({ window, document, console, setInterval() {}, Intl, Date });
   vm.runInContext(source("renderer.js"), context);
   return { context, element, listeners, call: (code) => vm.runInContext(code, context) };
@@ -149,4 +147,30 @@ test("all static and dynamic actions exist and packaged assets resolve", () => {
   for (const match of source("styles.css").matchAll(/url\(['"]?([^'")]+)['"]?\)/g)) {
     assert.ok(fs.existsSync(path.resolve(root, "dist", match[1])), match[1]);
   }
+});
+
+test("session purchases submit only a local name and price", async () => {
+  let saved;
+  const r = renderer({
+    addSessionItem: async (data) => { saved = JSON.parse(JSON.stringify(data)); },
+    getDashboard: async () => [],
+  });
+  r.call("showSale(7)");
+  r.element("saleName").value = " نوشابه ";
+  r.element("salePrice").value = "۷۰۰۰";
+  await r.call("saveSale()");
+  assert.deepEqual(saved, { sessionId: 7, name: "نوشابه", price: 7000 });
+  assert.equal(r.element("saleDialog").open, false);
+  assert.doesNotMatch(source("index.html"), /saleProduct|saleQuantity|productStock|view-products/);
+});
+
+test("appearance switching updates its label and persists the choice", () => {
+  const r = renderer();
+  r.call("toggleTheme()");
+  assert.equal(r.call("document.documentElement.dataset.theme"), "light");
+  assert.equal(r.call('window.localStorage.get("gamagement-theme")'), "light");
+  assert.equal(r.element("themeLabel").textContent, "حالت تیره");
+  r.call("toggleTheme()");
+  assert.equal(r.call("document.documentElement.dataset.theme"), "dark");
+  assert.equal(r.call('window.localStorage.get("gamagement-theme")'), "dark");
 });

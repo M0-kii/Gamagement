@@ -116,6 +116,12 @@ fn add_product_to_session(db: State<'_, Database>, data: AddProductInput) -> App
 }
 
 #[tauri::command(async)]
+fn add_session_item(db: State<'_, Database>, data: SessionItemInput) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::add_session_item(&conn, data)
+}
+
+#[tauri::command(async)]
 fn update_item_quantity(db: State<'_, Database>, data: ItemQuantityInput) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     database::update_item_quantity(&conn, data)
@@ -267,6 +273,7 @@ fn main() {
             save_product,
             archive_product,
             add_product_to_session,
+            add_session_item,
             update_item_quantity,
             delete_session_item,
             get_history,
