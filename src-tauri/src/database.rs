@@ -595,3 +595,14 @@ pub fn add_session_item(conn: &Connection, data: SessionItemInput) -> AppResult<
     ).map_err(err)?;
     tx.commit().map_err(err)
 }
+
+pub fn clear_history(conn: &Connection) -> AppResult<usize> {
+    let tx = conn.unchecked_transaction().map_err(err)?;
+    tx.execute("DELETE FROM session_items WHERE sessionId IN (SELECT id FROM sessions WHERE status='ended')", []).map_err(err)?;
+    tx.execute("DELETE FROM session_segments WHERE sessionId IN (SELECT id FROM sessions WHERE status='ended')", []).map_err(err)?;
+    let removed = tx
+        .execute("DELETE FROM sessions WHERE status='ended'", [])
+        .map_err(err)?;
+    tx.commit().map_err(err)?;
+    Ok(removed)
+}

@@ -325,6 +325,26 @@ async function refreshLive() {
     notify("دریافت وضعیت جلسه‌ها انجام نشد: " + String(error), true);
   } finally { state.polling = false; }
 }
+function applySidebar(collapsed) {
+  document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "expanded";
+  const label = collapsed ? "باز کردن نوار کناری" : "جمع کردن نوار کناری";
+  const control = $("sidebarToggle");
+  control.setAttribute("aria-expanded", String(!collapsed));
+  control.setAttribute("aria-label", label);
+  control.setAttribute("title", label);
+}
+function toggleSidebar() {
+  const collapsed = document.documentElement.dataset.sidebar !== "collapsed";
+  applySidebar(collapsed);
+  try { window.localStorage.setItem("gamagement-sidebar", collapsed ? "collapsed" : "expanded"); } catch {}
+}
+async function clearHistory() {
+  if (!await window.appAPI.confirm("همه جلسه‌های پرداخت‌شده و فاکتورهای آن‌ها برای همیشه حذف شوند؟ این کار قابل بازگشت نیست. جلسه‌های باز حفظ می‌شوند.")) return;
+  const removed = await window.appAPI.clearHistory();
+  state.filter.page = 1;
+  await loadHistory();
+  notify(removed ? `${fmt.number(removed)} فاکتور حذف شد.` : "سابقه‌ای برای حذف وجود ندارد.");
+}
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   $("themeLabel").textContent = theme === "dark" ? "حالت روشن" : "حالت تیره";
@@ -336,7 +356,7 @@ function toggleTheme() {
   try { window.localStorage.setItem("gamagement-theme", theme); } catch {}
 }
 const actions = {
-  toggleTheme,
+  toggleTheme, toggleSidebar, clearHistory,
   switchView, showConsole, saveConsole, archiveConsole, changeStartControllers,
   startSession, pauseSession, resumeSession, changeSessionControllers,
   showSale, saveSale, removeItem, checkout, confirmCheckout, cancelCheckout,
@@ -378,6 +398,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   let theme = "dark";
   try { theme = window.localStorage.getItem("gamagement-theme") || theme; } catch {}
   applyTheme(theme === "light" ? "light" : "dark");
+  applySidebar(document.documentElement.dataset.sidebar === "collapsed");
   $("historyFrom").value = fmt.jalaliDate().replace(/\/\d{2}$/, "/01");
   $("historyTo").value = fmt.jalaliDate();
   $("consoleFilter").addEventListener("change", renderDashboard);

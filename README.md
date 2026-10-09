@@ -12,7 +12,7 @@ The interface is Persian and right-to-left.
 - Checkout freezes the bill. Confirming payment saves the displayed amount;
   cancelling restores the previous session state.
 - Session purchases entered with a name and price.
-- Rounded desktop interface with remembered light and dark appearance.
+- Rounded desktop interface with remembered light/dark appearance and collapsible sidebar.
 - Searchable receipts, Jalali date filters, daily revenue, console usage, and CSV export.
 - Printable receipts and archived consoles with retained history.
 
@@ -67,6 +67,10 @@ time in the Asia/Tehran timezone and include only settled sessions.
 CSV export includes every matching receipt, independently of the current page.
 Amounts are in tomans and exported timestamps are UTC. Receipts can be reopened
 and printed from the history screen.
+
+Clear history permanently removes all paid sessions, receipt items, and play
+segments after confirmation, regardless of the current filters. Open sessions
+and console definitions are retained.
 
 ## Data and upgrades
 

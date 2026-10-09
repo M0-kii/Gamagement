@@ -13,11 +13,12 @@
   <a class="skip-link" href="#main">رفتن به محتوا</a>
   <header>
     <div class="header-content">
+      <button id="sidebarToggle" class="sidebar-toggle" data-action="toggleSidebar" aria-label="جمع کردن نوار کناری" aria-expanded="true" aria-controls="sidebarNav" title="جمع کردن نوار کناری"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16M8 9l3 3-3 3"/></svg></button>
       <div class="brand"><h1>AsiaGame</h1><span>مدیریت گیم‌سنتر</span></div>
-      <p class="sidebar-label">فضای کاری</p><nav aria-label="بخش‌های برنامه">
-        <button data-action="switchView" data-args='["dashboard"]' aria-current="page" id="nav-dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="3"/><path d="M8 21h8M12 17v4M7 10h4M9 8v4M16 10h.01M18 12h.01"/></svg><span>کنسول‌ها</span></button>
-        <button data-action="switchView" data-args='["history"]' id="nav-history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l3 3v15H5V3zM8 9h8M8 13h8M8 17h5"/></svg><span>سوابق و گزارش</span></button>
-      </nav><div class="sidebar-footer"><button class="theme-button" data-action="toggleTheme" aria-label="تغییر ظاهر برنامه"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z"/></svg><span id="themeLabel">حالت روشن</span></button><strong>AsiaGame</strong>مدیریت جلسه‌ها و درآمد</div>
+      <p class="sidebar-label">فضای کاری</p><nav id="sidebarNav" aria-label="بخش‌های برنامه">
+        <button data-action="switchView" data-args='["dashboard"]' aria-current="page" id="nav-dashboard" aria-label="کنسول‌ها" title="کنسول‌ها"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="3"/><path d="M8 21h8M12 17v4M7 10h4M9 8v4M16 10h.01M18 12h.01"/></svg><span>کنسول‌ها</span></button>
+        <button data-action="switchView" data-args='["history"]' id="nav-history" aria-label="سوابق و گزارش" title="سوابق و گزارش"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l3 3v15H5V3zM8 9h8M8 13h8M8 17h5"/></svg><span>سوابق و گزارش</span></button>
+      </nav><div class="sidebar-footer"><button class="theme-button" data-action="toggleTheme" aria-label="تغییر ظاهر برنامه"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z"/></svg><span id="themeLabel">حالت روشن</span></button><div class="sidebar-info"><strong>AsiaGame</strong>مدیریت جلسه‌ها و درآمد</div></div>
     </div>
   </header>
   <main id="main" class="container" tabindex="-1">
@@ -32,7 +33,7 @@
       <div id="consoleList" class="grid"><p class="empty">در حال دریافت کنسول‌ها…</p></div>
     </section>
     <section id="view-history" hidden aria-labelledby="history-title">
-      <div class="section-header"><div><h2 id="history-title">سوابق و گزارش</h2><p>فاکتورهای تسویه‌شده؛ درآمد بر اساس زمان پرداخت در تهران</p></div><button class="btn-secondary" data-action="exportHistory">خروجی CSV</button></div>
+      <div class="section-header"><div><h2 id="history-title">سوابق و گزارش</h2><p>فاکتورهای تسویه‌شده؛ درآمد بر اساس زمان پرداخت در تهران</p></div><div class="header-actions"><button class="btn-secondary" data-action="exportHistory">خروجی CSV</button><button class="btn-secondary danger-text" data-action="clearHistory">پاک کردن همه سوابق</button></div></div>
       <form id="historyFilter" class="filter-bar" data-submit="filterHistory">
         <label>از تاریخ (شمسی)<input id="historyFrom" placeholder="۱۴۰۵/۰۷/۰۱" inputmode="numeric" autocomplete="off" /></label>
         <label>تا تاریخ (شمسی)<input id="historyTo" placeholder="۱۴۰۵/۰۷/۱۷" inputmode="numeric" autocomplete="off" /></label>

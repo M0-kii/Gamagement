@@ -1277,3 +1277,93 @@ html[data-input="keyboard"] button:active {
     transform: none;
   }
 }
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  width: 32px;
+  height: 30px;
+  margin-bottom: 12px;
+  padding: 5px;
+  background: transparent;
+  color: var(--muted);
+}
+.sidebar-toggle svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sidebar-toggle:hover {
+  color: var(--text);
+  background: #80808018;
+}
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+.header-actions .danger-text {
+  color: var(--danger);
+}
+[data-theme="dark"] .header-actions .danger-text {
+  color: var(--danger);
+}
+html[data-sidebar="collapsed"] header {
+  width: 68px;
+}
+html[data-sidebar="collapsed"] .header-content {
+  padding-inline: 8px;
+}
+html[data-sidebar="collapsed"] .container {
+  margin-inline-start: 68px;
+}
+html[data-sidebar="collapsed"] .brand,
+html[data-sidebar="collapsed"] .sidebar-label,
+html[data-sidebar="collapsed"] nav span,
+html[data-sidebar="collapsed"] .theme-button span,
+html[data-sidebar="collapsed"] .sidebar-info {
+  display: none;
+}
+html[data-sidebar="collapsed"] .sidebar-toggle {
+  align-self: center;
+  margin-bottom: 28px;
+}
+html[data-sidebar="collapsed"] nav button,
+html[data-sidebar="collapsed"] .theme-button {
+  justify-content: center;
+  padding-inline: 0;
+}
+html[data-sidebar="collapsed"] .sidebar-footer {
+  padding-inline: 0;
+}
+@media(max-width:760px) {
+  .header-actions {
+    flex-direction: column;
+  }
+}
+@media(max-width:520px) {
+  html[data-sidebar="collapsed"] header {
+    position: fixed;
+    height: 100vh;
+    border-inline-end: 1px solid var(--border);
+  }
+  html[data-sidebar="collapsed"] .header-content {
+    height: 100%;
+  }
+  html[data-sidebar="collapsed"] nav {
+    flex-direction: column;
+  }
+  html[data-sidebar="collapsed"] .sidebar-footer {
+    margin-top: auto;
+  }
+  .sidebar-info {
+    display: none;
+  }
+}

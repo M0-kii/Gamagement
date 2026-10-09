@@ -641,3 +641,94 @@ fn manual_purchases_are_local_validated_and_frozen_at_checkout() {
     delete_session_item(&conn, bill.items[0].id).unwrap();
     assert_eq!(invoice_at(&conn, id, at(80)).unwrap().shop_cost, 0);
 }
+
+#[test]
+fn clear_history_preserves_open_sessions_and_removes_receipt_details() {
+    let conn = fixture();
+    let ended = start(&conn, 2);
+    add_session_item(
+        &conn,
+        SessionItemInput {
+            session_id: ended,
+            name: "Drink".into(),
+            price: 7000,
+        },
+    )
+    .unwrap();
+    prepare_checkout_at(&conn, ended, at(60)).unwrap();
+    confirm_checkout_at(&conn, ended, at(61)).unwrap();
+    let active = start(&conn, 2);
+    let paused_console = console(&conn);
+    let paused = start_session_at(
+        &conn,
+        StartInput {
+            console_id: paused_console,
+            controllers: 2,
+        },
+        at(70),
+    )
+    .unwrap();
+    pause_session_at(&conn, paused, at(80)).unwrap();
+    let checkout_console = console(&conn);
+    let checkout = start_session_at(
+        &conn,
+        StartInput {
+            console_id: checkout_console,
+            controllers: 2,
+        },
+        at(70),
+    )
+    .unwrap();
+    prepare_checkout_at(&conn, checkout, at(90)).unwrap();
+    assert_eq!(clear_history(&conn).unwrap(), 1);
+    assert!(invoice_at(&conn, ended, at(100)).is_err());
+    for (id, status) in [
+        (active, "active"),
+        (paused, "paused"),
+        (checkout, "checkout"),
+    ] {
+        assert_eq!(
+            invoice_at(&conn, id, at(100)).unwrap().session.status,
+            status
+        );
+    }
+    assert!(reports::get_history(&conn, HistoryFilter::default())
+        .unwrap()
+        .entries
+        .is_empty());
+    let details: i64 = conn.query_row("SELECT (SELECT count(*) FROM session_items WHERE sessionId=?) + (SELECT count(*) FROM session_segments WHERE sessionId=?)", [ended, ended], |r| r.get(0)).unwrap();
+    assert_eq!(details, 0);
+    assert_eq!(clear_history(&conn).unwrap(), 0);
+    let mut check = conn.prepare("PRAGMA foreign_key_check").unwrap();
+    assert!(!check.exists([]).unwrap());
+}
+
+#[test]
+fn clear_history_rolls_back_details_if_session_deletion_fails() {
+    let conn = fixture();
+    let id = start(&conn, 2);
+    add_session_item(
+        &conn,
+        SessionItemInput {
+            session_id: id,
+            name: "Drink".into(),
+            price: 7000,
+        },
+    )
+    .unwrap();
+    prepare_checkout_at(&conn, id, at(60)).unwrap();
+    confirm_checkout_at(&conn, id, at(61)).unwrap();
+    conn.execute_batch("CREATE TRIGGER reject_history_delete BEFORE DELETE ON sessions BEGIN SELECT RAISE(ABORT, 'blocked'); END;").unwrap();
+    assert!(clear_history(&conn).is_err());
+    let bill = invoice_at(&conn, id, at(100)).unwrap();
+    assert_eq!(bill.items.len(), 1);
+    assert_eq!(bill.shop_cost, 7000);
+    let segments: i64 = conn
+        .query_row(
+            "SELECT count(*) FROM session_segments WHERE sessionId=?",
+            [id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(segments, 1);
+}

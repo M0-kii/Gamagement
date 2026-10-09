@@ -16,6 +16,7 @@
     updateSessionControllers: (data) => invoke("update_session_controllers", { data }),
     addSessionItem: (data) => invoke("add_session_item", { data }),
     deleteSessionItem: (id) => invoke("delete_session_item", { id }),
+    clearHistory: () => invoke("clear_history"),
     getHistory: (filter) => invoke("get_history", { filter }),
     exportHistory: (filter) => invoke("export_history", { filter }),
     confirm: (message) => invoke("ask_confirmation", { message }),

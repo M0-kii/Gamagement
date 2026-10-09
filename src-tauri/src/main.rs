@@ -134,6 +134,12 @@ fn delete_session_item(db: State<'_, Database>, id: i64) -> AppResult<()> {
 }
 
 #[tauri::command(async)]
+fn clear_history(db: State<'_, Database>) -> AppResult<usize> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::clear_history(&conn)
+}
+
+#[tauri::command(async)]
 fn get_history(db: State<'_, Database>, filter: HistoryFilter) -> AppResult<HistoryPage> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     reports::get_history(&conn, filter)
@@ -277,6 +283,7 @@ fn main() {
             update_item_quantity,
             delete_session_item,
             get_history,
+            clear_history,
             export_history,
             ask_confirmation,
             show_message

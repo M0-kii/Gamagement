@@ -36,6 +36,7 @@ test("every frontend IPC command is registered in Tauri and preserves named argu
     ["updateSessionControllers", "update_session_controllers", data, { data }],
     ["addSessionItem", "add_session_item", data, { data }],
     ["deleteSessionItem", "delete_session_item", 7, { id: 7 }],
+    ["clearHistory", "clear_history", undefined, {}],
     ["getHistory", "get_history", data, { filter: data }],
     ["exportHistory", "export_history", data, { filter: data }],
     ["confirm", "ask_confirmation", "Confirm?", { message: "Confirm?" }],
@@ -173,4 +174,24 @@ test("appearance switching updates its label and persists the choice", () => {
   r.call("toggleTheme()");
   assert.equal(r.call("document.documentElement.dataset.theme"), "dark");
   assert.equal(r.call('window.localStorage.get("gamagement-theme")'), "dark");
+});
+
+test("history deletion requires confirmation and refreshes reports from page one", async () => {
+  let approved = false, removed = 0, filter;
+  const r = renderer({
+    confirm: async () => approved,
+    clearHistory: async () => { removed++; return 3; },
+    getHistory: async (data) => {
+      filter = data;
+      return { summary: { sessions: 0, gameRevenue: 0, shopRevenue: 0, totalRevenue: 0 }, entries: [], days: [], consoles: [], page: 1, pages: 1 };
+    },
+  });
+  await r.call("clearHistory()");
+  assert.equal(removed, 0);
+  approved = true;
+  r.call("state.filter.page = 5");
+  await r.call("clearHistory()");
+  assert.equal(removed, 1);
+  assert.equal(filter.page, 1);
+  assert.match(r.element("notification").textContent, /۳ فاکتور/);
 });
